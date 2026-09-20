@@ -26,10 +26,10 @@ dependencies {
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     // Argon2id password hashing (ADR-SEC-004 / §24.7).
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.86'
 
     // Structured JSON logging for prod.
-    implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+    implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
 
     // Boot 4 no longer autoconfigures a bare flyway-core dependency; the
     // starter is required or migrations silently never run and Hibernate

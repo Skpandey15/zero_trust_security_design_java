@@ -2,7 +2,7 @@
 
 The Backend track from the architecture document — §27.1, work packages **WP-BE-01**, **WP-BE-02**, **WP-BE-03**.
 
-A Gradle multi-project build. Java 25, Spring Boot 4.1.
+A Gradle multi-project build. Java 27, Spring Boot 4.1.1, Gradle 9.7.1.
 
 ```
 backend/
@@ -25,7 +25,9 @@ backend/
 ./gradlew build
 ```
 
-Java 25 is downloaded automatically if it is not installed — the foojay toolchain resolver is configured in `settings.gradle`.
+Java 27 is downloaded automatically if it is not installed — the foojay toolchain resolver is configured in `settings.gradle`.
+
+**Note on 27 vs 25.** Java 27 (15 Sep 2026) is the latest release but is **not LTS** — Java 25 is the current LTS, and 29 is next. 27 is pinned here for two reasons: it is the newest, and **JEP 527** brings post-quantum hybrid key exchange for TLS 1.3 into the platform, which is the TLS half of [ADR-SEC-021](../adr/ADR-SEC-021-crypto-agility-pqc.md). If a support window matters more than that, `JavaLanguageVersion.of(25)` in `build.gradle` is the one-line revert.
 
 ## Run
 

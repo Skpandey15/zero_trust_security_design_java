@@ -4,8 +4,8 @@ The UI track from the architecture document — §27.1, work packages **WP-UI-01
 
 ```
 ui/
-├── frontend/   React 19 + Vite + TypeScript
-└── bff/        Spring Boot 4.1 Backend For Frontend (Java 25)
+├── frontend/   React 19.3 + Vite 8 + TypeScript 7
+└── bff/        Spring Boot 4.1.1 Backend For Frontend (Java 27)
 ```
 
 Both live here because WP-UI-01 scopes them as one work package: the browser trust boundary is the pair, not either half.
