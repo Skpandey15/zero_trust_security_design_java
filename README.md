@@ -59,6 +59,19 @@ Each revision responded to an adversarial review of the one before it; §24–§
 - **Compromise of one pod, service or database identity must not grant lateral access** to unrelated resources.
 - **Security controls are testable in CI and observable in production** — a fitness function is not a control until it executes.
 
+## Architecture decisions
+
+The [`adr/`](adr/) directory holds the **Architecture Decision Register** — twenty-four decisions under a single `ADR-SEC-nnn` namespace, each with its context, the alternatives considered and why they were rejected, consequences including the negative ones, and how the decision is verified.
+
+Start with the four that carry the most weight:
+
+| | |
+|---|---|
+| [ADR-SEC-007](adr/ADR-SEC-007-bff-and-browser-token-custody.md) | BFF and browser token custody |
+| [ADR-SEC-009](adr/ADR-SEC-009-security-epoch-model.md) | `token_valid_after` / security-epoch model |
+| [ADR-SEC-010](adr/ADR-SEC-010-refresh-token-rotation-reuse.md) | Refresh-token rotation and reuse response |
+| [ADR-SEC-015](adr/ADR-SEC-015-tenant-isolation-membership.md) | Tenant isolation and membership model |
+
 ## Related
 
 The accompanying implementation lives in [`zero-trust-auth-service`](https://github.com/Skpandey15/zero-trust-auth-service) — Spring Boot 3.5, RS256 JWT with continuous verification, rotating refresh-token families with reuse detection, Argon2id, TOTP MFA, and an OAuth2.1 / OIDC provider.
