@@ -2,7 +2,7 @@
 
 A principal-engineer-level reference architecture for zero-trust identity and authorization on the Java / Spring Boot / Kubernetes stack — HLD, LLD, threat model, and implementation roadmap.
 
-**Current revision: [v1.5](Java_Zero_Trust_Security_Architecture_Principal_Engineer_v1.5.docx)**
+**Current revision: [v1.6](Java_Zero_Trust_Security_Architecture_Principal_Engineer_v1.6.docx)**
 
 ---
 
@@ -46,8 +46,9 @@ This is deliberate, and the document is explicit that it is **not** the general 
 | v1.3 | RFC 9068 access-token validation; continuous-verification latency budget with cache TTL bound to revocation SLA; post-quantum readiness and crypto-agility position |
 | v1.4 | `at+jwt` documented as a coordinated issuer-and-validator change; two additional negative tests; figure restored |
 | v1.5 | Delivery restructured into UI/BFF and Backend tracks — six work packages, vertical-slice sequencing with a thin first slice; ADR register split resolved and four decisions added; security-test ownership moved to the work package that issues tokens; tenancy schema and resourcing re-mapped |
+| v1.6 | Architecture Decision Register consolidated — two overlapping ADR sequences merged into a single 24-entry register under one namespace, with supersession mapping; recovery assurance tiers given the decision record they lacked |
 
-Each revision responded to an adversarial review of the one before it; §24–§27 record what each round closed.
+Each revision responded to an adversarial review of the one before it; §24–§28 record what each round closed.
 
 ## Principles the document holds to
 
@@ -64,4 +65,4 @@ The accompanying implementation lives in [`zero-trust-auth-service`](https://git
 
 ## Note on format
 
-The documents are Word files because they carry tables, figures and page structure that survive review and circulation. `Security Architecture.png` is the source diagram, also embedded in v1.1, v1.4 and v1.5.
+The documents are Word files because they carry tables, figures and page structure that survive review and circulation. `Security Architecture.png` is the source diagram, also embedded in v1.1 and from v1.4 onward.
