@@ -1,7 +1,11 @@
 // WP-BE-01 - Identity and Authorization Server.
-// Owns: registration, credentials, OIDC + PKCE, token issuance, JWKS, refresh-token
-// families, sessions, devices, recovery, security epoch.
-// ADRs: SEC-002, SEC-003, SEC-004, SEC-005, SEC-008, SEC-009, SEC-010, SEC-011
+//
+// Ported from zero-trust-auth-service and upgraded Spring Boot 3.5 -> 4.1
+// (Spring Security 6.5 -> 7). Design document §27.8: this work package evolves
+// that codebase rather than starting clean, and the upgrade is part of it -
+// the 3.5 line passed its open-source support window in June 2026.
+//
+// ADRs: SEC-002, SEC-003, SEC-004, SEC-008, SEC-009, SEC-010, SEC-011
 
 plugins {
     id 'org.springframework.boot'
@@ -11,20 +15,47 @@ plugins {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    // Nimbus-based JWT encoder/decoder.
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    // OAuth2.1 / OIDC provider: discovery, JWKS, authorization_code + PKCE,
+    // client_credentials, refresh, userinfo.
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-authorization-server'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
-    // Argon2id password hashing (ADR-SEC-004 / §24.7)
+    // Argon2id password hashing (ADR-SEC-004 / §24.7).
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
 
-    implementation 'org.flywaydb:flyway-core'
+    // Structured JSON logging for prod.
+    implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+
+    // Boot 4 no longer autoconfigures a bare flyway-core dependency; the
+    // starter is required or migrations silently never run and Hibernate
+    // schema validation fails on the first missing table.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Boot 4 split MockMvc test autoconfiguration out of the umbrella starter:
+    // @AutoConfigureMockMvc now lives in org.springframework.boot.webmvc.test.autoconfigure.
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation project(':security-test-support')
 }
+
+// NOT YET PORTED - the AI security-insights module.
+//
+// Spring AI 1.0's compatibility with Spring Boot 4.1 is unverified, and the
+// feature is one admin endpoint reading the login audit table. It is held back
+// so a dependency problem there cannot block the auth core. Tracked as
+// follow-on work; see authorization-server README.
+//
+//   implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'
+//   implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+//
+// Also not yet ported: springdoc-openapi. The 2.x line targets Boot 3; Boot 4
+// needs a newer major version, so the OpenApiConfig bean is held back with it.

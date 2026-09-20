@@ -68,7 +68,7 @@ Two buildable projects, split along the tracks in §27.1:
 | [`backend/`](backend/) | WP-BE-01 · 02 · 03 | Authorization Server, Resource Server, shared security-test module. Gradle multi-project, Java 25, Spring Boot 4.1 |
 | [`ui/`](ui/) | WP-UI-01 · 02 · 03 | React 19 + Vite frontend and the Spring Boot BFF that owns the browser trust boundary |
 
-Both build and start today; neither authenticates anyone yet. They are the thin first slice from §27.3 — see each project's README for what is present and what is still to build.
+The Authorization Server is the ported `zero-trust-auth-service`, upgraded to Spring Boot 4.1 / Spring Security 7 — it authenticates, and its 21 tests pass. The Resource Server and the UI track are still skeletons. Each project's README says what is present and what is not.
 
 ```bash
 cd backend && ./gradlew build

@@ -1,36 +1,57 @@
 server:
-  port: 9000
   # Resolve the client IP from X-Forwarded-* only when the immediate peer is a
-  # trusted proxy. A directly-connected client cannot spoof its address this way.
+  # trusted proxy (Tomcat RemoteIpValve; default internal-proxies = loopback +
+  # RFC-1918). A directly-connected client cannot spoof its IP this way. Set
+  # server.tomcat.remoteip.internal-proxies if your load balancer sits outside
+  # those ranges.
   forward-headers-strategy: native
 
 spring:
   application:
-    name: authorization-server
+    name: auth-service
   profiles:
     active: local
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
-
+    properties:
+      hibernate:
+        # Load lazy/eager collections (e.g. user roles) for a whole page in one
+        # IN-clause query instead of one-per-row (avoids N+1 on admin listings).
+        default_batch_fetch_size: 100
+  threads:
+    virtual:
+      enabled: true   # Java 21 virtual threads for every request
 app:
-  token:
-    # ADR-SEC-008. Externally reachable base URL in each environment, so OIDC
-    # discovery advertises correct endpoints.
-    issuer: ${AUTH_ISSUER:http://localhost:9000}
-    api-audience: ${API_AUDIENCE:zero-trust-api}
-    access-token-ttl: 10m
+  security:
+    access-token-ttl: 10m   # short-lived by design — zero trust
     refresh-token-ttl: 7d
+    # OIDC/JWT issuer identifier (a URL). Set to the externally-reachable base URL
+    # in each environment so discovery/JWKS advertise correct endpoints.
+    issuer: ${AUTH_ISSUER:http://localhost:8080}
+    # Optional: point to PEM files. If omitted, an ephemeral RSA key pair is
+    # generated at startup (fine for dev, tokens die on restart).
+    # rsa-private-key: classpath:certs/private.pem
+    # rsa-public-key: classpath:certs/public.pem
+  cors:
+    # Comma-separated browser origins allowed to call the API cross-origin.
+    # Empty = same-origin only (no CORS headers emitted). Set this when the SPA
+    # is deployed on a different origin, e.g. https://console.example.com
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
 
 ---
-# LOCAL - in-memory H2, zero setup.
+# LOCAL — self-contained H2 in-memory DB + H2 console (developer laptop).
 spring:
   config:
     activate:
@@ -39,12 +60,15 @@ spring:
     url: jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1
     username: sa
     password: ""
-  jpa:
-    hibernate:
-      ddl-auto: none
+  h2:
+    console:
+      enabled: true
+app:
+  security:
+    cookie-secure: false   # local dev runs over http; a Secure cookie wouldn't be sent
 
 ---
-# DEV - PostgreSQL.
+# DEV — Postgres (the deployed / shared environment).
 spring:
   config:
     activate:

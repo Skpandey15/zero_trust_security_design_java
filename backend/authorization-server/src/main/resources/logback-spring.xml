@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- DEV: human-readable console with the correlation id.
+         "local" must be listed: it is the default active profile, and the
+         previous "dev,default" matched neither it nor anything else under a
+         local run, leaving the root logger with no appender - so every
+         security.events line went nowhere. -->
+    <springProfile name="local,dev,default">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [%X{requestId:-startup}] %logger{30} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="security.events" level="INFO"/>
+    </springProfile>
+
+    <!-- PROD: one-line JSON for ELK / Loki / CloudWatch, requestId included -->
+    <springProfile name="prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>requestId</includeMdcKeyName>
+                <customFields>{"service":"auth-service"}</customFields>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+        <logger name="security.events" level="INFO"/>
+        <logger name="org.hibernate" level="WARN"/>
+    </springProfile>
+</configuration>

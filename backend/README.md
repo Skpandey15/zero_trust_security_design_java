@@ -34,17 +34,15 @@ Java 25 is downloaded automatically if it is not installed — the foojay toolch
 ./gradlew :resource-server:bootRun         # :9100
 ```
 
-The default `local` profile uses in-memory H2 with Flyway applying `V1__baseline.sql`. `dev` uses PostgreSQL via `DB_URL` / `DB_USER` / `DB_PASSWORD`.
+The default `local` profile uses in-memory H2 with Flyway applying `V1`–`V6`. `dev` uses PostgreSQL via `DB_URL` / `DB_USER` / `DB_PASSWORD`.
 
 ## What is here, and what is not
 
-This is the **WP-BE-01.1 skeleton** — deliberately the thin first slice from §27.3. It builds, starts, and applies the baseline schema. It does not yet authenticate anyone.
+`authorization-server` is **not a skeleton** — it is the ported `zero-trust-auth-service`, upgraded to Spring Boot 4.1 / Spring Security 7, with **21 tests passing**. It authenticates, issues RFC 9068 tokens, rotates refresh families with reuse detection, and enforces continuous verification. See its [README](authorization-server/README.md) for the migration notes and what remains.
 
-**Schema present** (`V1__baseline.sql`): `users`, `credentials`, `password_history`, `user_security_state`, `security_sessions`, `refresh_token_families`, `refresh_tokens`, `tenants`, `subject_tenant_membership`, `oauth_clients`, `security_events`.
+`resource-server` **is** a skeleton: it builds, starts, and validates tokens strictly, but exposes no endpoints yet. RBAC/ABAC, tenancy enforcement and the PDP/PEP integration are WP-BE-02.
 
-Two of those exist because the v1.5 review found them missing from the proposed model: **tenancy** (`tenants`, `subject_tenant_membership`) which [ADR-SEC-015](../adr/ADR-SEC-015-tenant-isolation-membership.md) and WP-BE-02 depend on, and **credential history** which §5.3's `credential_version` needs something to compare against.
-
-**Still to build** — WP-BE-01.1: registration and login endpoints, Argon2id credential handling, the Authorization Server configuration, RFC 9068 token issuance, refresh rotation. WP-BE-01.2: `email_verifications`, `authenticators`, `passkeys`, `recovery_codes`, `devices` and their flows.
+Schema: the ported `V1`–`V5` plus `V6__tenancy.sql`, which adds the `tenants`, `subject_tenant_membership` and `password_history` tables the v1.5 review found missing from the proposed model — [ADR-SEC-015](../adr/ADR-SEC-015-tenant-isolation-membership.md) and WP-BE-02 depend on them.
 
 ## Two things worth reading before changing the token code
 
