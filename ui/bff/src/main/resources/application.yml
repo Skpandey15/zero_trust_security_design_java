@@ -1,0 +1,86 @@
+server:
+  port: 8080
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        # ADR-SEC-007. HttpOnly is the load-bearing attribute: it removes the
+        # credential from JavaScript's reach entirely.
+        http-only: true
+        secure: true          # overridden to false only for local http dev
+        same-site: lax        # 'lax' so the OAuth redirect callback still works
+        name: ZTSESSION
+
+spring:
+  application:
+    name: zero-trust-bff
+  profiles:
+    active: local
+
+app:
+  bff:
+    api-base-url: ${API_BASE_URL:http://localhost:9100}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+---
+# LOCAL - in-memory sessions over plain http.
+spring:
+  config:
+    activate:
+      on-profile: local
+  # In-memory sessions: single replica only. See §27.8 - shared session storage
+  # is required before more than one replica can serve the interactive flow.
+  session:
+    store-type: none
+  security:
+    oauth2:
+      client:
+        registration:
+          zero-trust-web:
+            provider: zero-trust
+            client-id: ${OAUTH_CLIENT_ID:zero-trust-web}
+            client-secret: ${OAUTH_CLIENT_SECRET:}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile
+        provider:
+          zero-trust:
+            # Discovery runs at startup, so the Authorization Server must be up.
+            issuer-uri: ${AUTH_ISSUER:http://localhost:9000}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false   # local dev runs over http; a Secure cookie is not sent
+
+---
+# DEV - Redis-backed shared sessions, so the BFF can scale horizontally.
+spring:
+  config:
+    activate:
+      on-profile: dev
+  session:
+    store-type: redis
+  security:
+    oauth2:
+      client:
+        registration:
+          zero-trust-web:
+            provider: zero-trust
+            client-id: ${OAUTH_CLIENT_ID:zero-trust-web}
+            client-secret: ${OAUTH_CLIENT_SECRET:}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile
+        provider:
+          zero-trust:
+            issuer-uri: ${AUTH_ISSUER}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}

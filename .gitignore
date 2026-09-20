@@ -6,3 +6,20 @@
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Gradle / Java
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+*.iml
+.idea/
+out/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local env
+.env
+.env.local

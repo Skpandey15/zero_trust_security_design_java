@@ -1,0 +1,24 @@
+// The shared security-test module (design document §24.6, §27.6).
+//
+// Test ownership follows the thing being tested: token-validation fitness
+// functions belong to WP-BE-01, which issues tokens, NOT to WP-BE-02. If they
+// waited for WP-BE-02 the first slice would ship token issuance with no
+// validation gate behind it - which is exactly how an unvalidated audience
+// claim reached the earlier reference implementation.
+
+plugins {
+    id 'java-library'
+    id 'io.spring.dependency-management'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.1.0"
+    }
+}
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-test'
+    api 'org.springframework.security:spring-security-test'
+    api 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+}

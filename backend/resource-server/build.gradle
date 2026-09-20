@@ -1,0 +1,19 @@
+// WP-BE-02 - Resource Server and policy enforcement.
+// ADRs: SEC-008 (token validation), SEC-013 (RBAC+ABAC+domain),
+//       SEC-014 (PEP/PDP), SEC-015 (tenancy)
+
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation project(':security-test-support')
+}

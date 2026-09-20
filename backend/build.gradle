@@ -1,0 +1,30 @@
+// Backend track - WP-BE-01, WP-BE-02, WP-BE-03.
+// See backend/README.md for the mapping from modules to work packages and ADRs.
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    group = 'com.example.zerotrust'
+    version = '0.1.0-SNAPSHOT'
+
+    java {
+        toolchain {
+            // Java 25 LTS, per the architecture's target stack.
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+}

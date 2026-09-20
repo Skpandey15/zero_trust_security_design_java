@@ -1,0 +1,30 @@
+// WP-BE-01 - Identity and Authorization Server.
+// Owns: registration, credentials, OIDC + PKCE, token issuance, JWKS, refresh-token
+// families, sessions, devices, recovery, security epoch.
+// ADRs: SEC-002, SEC-003, SEC-004, SEC-005, SEC-008, SEC-009, SEC-010, SEC-011
+
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-authorization-server'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Argon2id password hashing (ADR-SEC-004 / §24.7)
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation project(':security-test-support')
+}

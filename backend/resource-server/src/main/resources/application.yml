@@ -1,0 +1,22 @@
+server:
+  port: 9100
+  forward-headers-strategy: native
+
+spring:
+  application:
+    name: resource-server
+
+app:
+  token:
+    # ADR-SEC-008: the audience THIS service accepts. A token minted for any
+    # other audience under the same issuer and key must be rejected here.
+    issuer: ${AUTH_ISSUER:http://localhost:9000}
+    api-audience: ${API_AUDIENCE:zero-trust-api}
+    client-id: ${API_CLIENT_ID:zero-trust-web}
+    jwk-set-uri: ${JWK_SET_URI:http://localhost:9000/oauth2/jwks}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

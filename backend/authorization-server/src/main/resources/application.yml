@@ -1,0 +1,55 @@
+server:
+  port: 9000
+  # Resolve the client IP from X-Forwarded-* only when the immediate peer is a
+  # trusted proxy. A directly-connected client cannot spoof its address this way.
+  forward-headers-strategy: native
+
+spring:
+  application:
+    name: authorization-server
+  profiles:
+    active: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+app:
+  token:
+    # ADR-SEC-008. Externally reachable base URL in each environment, so OIDC
+    # discovery advertises correct endpoints.
+    issuer: ${AUTH_ISSUER:http://localhost:9000}
+    api-audience: ${API_AUDIENCE:zero-trust-api}
+    access-token-ttl: 10m
+    refresh-token-ttl: 7d
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+---
+# LOCAL - in-memory H2, zero setup.
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+---
+# DEV - PostgreSQL.
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb}
+    username: ${DB_USER:auth}
+    password: ${DB_PASSWORD:}

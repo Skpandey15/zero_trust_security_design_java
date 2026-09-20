@@ -59,6 +59,23 @@ Each revision responded to an adversarial review of the one before it; §24–§
 - **Compromise of one pod, service or database identity must not grant lateral access** to unrelated resources.
 - **Security controls are testable in CI and observable in production** — a fitness function is not a control until it executes.
 
+## Projects
+
+Two buildable projects, split along the tracks in §27.1:
+
+| | Track | Contents |
+|---|---|---|
+| [`backend/`](backend/) | WP-BE-01 · 02 · 03 | Authorization Server, Resource Server, shared security-test module. Gradle multi-project, Java 25, Spring Boot 4.1 |
+| [`ui/`](ui/) | WP-UI-01 · 02 · 03 | React 19 + Vite frontend and the Spring Boot BFF that owns the browser trust boundary |
+
+Both build and start today; neither authenticates anyone yet. They are the thin first slice from §27.3 — see each project's README for what is present and what is still to build.
+
+```bash
+cd backend && ./gradlew build
+cd ui/bff  && ./gradlew build
+cd ui/frontend && npm install && npm run build
+```
+
 ## Architecture decisions
 
 The [`adr/`](adr/) directory holds the **Architecture Decision Register** — twenty-four decisions under a single `ADR-SEC-nnn` namespace, each with its context, the alternatives considered and why they were rejected, consequences including the negative ones, and how the decision is verified.

@@ -1,0 +1,24 @@
+# Explicit endpoints instead of issuer-uri, so the context test never performs
+# OIDC discovery and never needs the Authorization Server running. A gate that
+# depends on another service being up is a gate that gets disabled.
+spring:
+  session:
+    store-type: none
+  security:
+    oauth2:
+      client:
+        registration:
+          zero-trust-web:
+            provider: zero-trust
+            client-id: zero-trust-web
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile
+        provider:
+          zero-trust:
+            authorization-uri: http://localhost:9000/oauth2/authorize
+            token-uri: http://localhost:9000/oauth2/token
+            jwk-set-uri: http://localhost:9000/oauth2/jwks
+            user-info-uri: http://localhost:9000/userinfo
+            user-name-attribute: sub
