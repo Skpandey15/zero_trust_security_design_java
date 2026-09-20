@@ -2,7 +2,7 @@
 
 A principal-engineer-level reference architecture for zero-trust identity and authorization on the Java / Spring Boot / Kubernetes stack — HLD, LLD, threat model, and implementation roadmap.
 
-**Current revision: [v1.4](Java_Zero_Trust_Security_Architecture_Principal_Engineer_v1.4.docx)**
+**Current revision: [v1.5](Java_Zero_Trust_Security_Architecture_Principal_Engineer_v1.5.docx)**
 
 ---
 
@@ -22,7 +22,7 @@ It covers:
 | **Supply chain** | SBOM, SCA, provenance, Cosign signing, admission verification |
 | **Threat model** | Attack-to-control mapping with an explicit residual-risk column |
 | **Availability** | Fail-open/fail-closed matrix, so the security architecture is not itself a single point of failure |
-| **Delivery** | Phased roadmap, work packages, resourcing estimates, and security SLOs expressed as executable fitness functions |
+| **Delivery** | Six work packages across a UI/BFF and a Backend track, sequenced as vertical slices so a working end-to-end flow exists from the first slice; resourcing estimates; security SLOs expressed as executable fitness functions |
 
 ## Architecture at a glance
 
@@ -45,8 +45,9 @@ This is deliberate, and the document is explicit that it is **not** the general 
 | v1.2 | Account recovery threat model (R1–R4 assurance tiers); multi-tenancy isolation model; authorization latency and resilience budget; resourcing estimates; fitness functions as executable tests |
 | v1.3 | RFC 9068 access-token validation; continuous-verification latency budget with cache TTL bound to revocation SLA; post-quantum readiness and crypto-agility position |
 | v1.4 | `at+jwt` documented as a coordinated issuer-and-validator change; two additional negative tests; figure restored |
+| v1.5 | Delivery restructured into UI/BFF and Backend tracks — six work packages, vertical-slice sequencing with a thin first slice; ADR register split resolved and four decisions added; security-test ownership moved to the work package that issues tokens; tenancy schema and resourcing re-mapped |
 
-Each revision responded to an adversarial review of the one before it; §24–§26 record what each round closed.
+Each revision responded to an adversarial review of the one before it; §24–§27 record what each round closed.
 
 ## Principles the document holds to
 
@@ -63,4 +64,4 @@ The accompanying implementation lives in [`zero-trust-auth-service`](https://git
 
 ## Note on format
 
-The documents are Word files because they carry tables, figures and page structure that survive review and circulation. `Security Architecture.png` is the source diagram, also embedded in v1.1 and v1.4.
+The documents are Word files because they carry tables, figures and page structure that survive review and circulation. `Security Architecture.png` is the source diagram, also embedded in v1.1, v1.4 and v1.5.
