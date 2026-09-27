@@ -61,19 +61,20 @@ Each revision responded to an adversarial review of the one before it; §24–§
 
 ## Projects
 
-Two buildable projects, split along the tracks in §27.1:
+Three buildable projects. The UI track of §27.1 is two of them — `frontend/` and `bff/` are one work package but separate builds, and the BFF is a Java service despite serving the UI:
 
 | | Track | Contents |
 |---|---|---|
 | [`backend/`](backend/) | WP-BE-01 · 02 · 03 | Authorization Server, Resource Server, shared security-test module. Gradle multi-project, Java 27, Spring Boot 4.1.1 |
-| [`ui/`](ui/) | WP-UI-01 · 02 · 03 | React 19.3 + Vite 8 frontend and the Spring Boot BFF that owns the browser trust boundary |
+| [`frontend/`](frontend/) | WP-UI-01 · 02 · 03 | React 19.3 + Vite 8 + TypeScript 7. Holds no token, by design |
+| [`bff/`](bff/) | WP-UI-01 | Spring Boot 4.1.1 Backend For Frontend. A Java service: it owns the browser trust boundary and holds the tokens the frontend never sees |
 
 The Authorization Server is the ported `zero-trust-auth-service`, upgraded to Spring Boot 4.1 / Spring Security 7 — it authenticates, and its 21 tests pass. The Resource Server and the UI track are still skeletons. Each project's README says what is present and what is not.
 
 ```bash
-cd backend && ./gradlew build
-cd ui/bff  && ./gradlew build
-cd ui/frontend && npm install && npm run build
+cd backend  && ./gradlew build
+cd bff      && ./gradlew build
+cd frontend && npm install && npm run build
 ```
 
 ## Architecture decisions
