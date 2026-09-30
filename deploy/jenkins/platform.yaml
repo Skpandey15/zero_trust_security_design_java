@@ -1,0 +1,93 @@
+# Everything Jenkins needs around the Helm chart: namespace, the agent's
+# identity and its (deliberately small) rights, build caches, and the TLS cert.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+  labels:
+    # Kaniko builds images as root inside an unprivileged container, which the
+    # `restricted` profile forbids and `baseline` allows. Privileged pods and
+    # host access are still refused. The trade-off is stated, not hidden:
+    # rootless BuildKit would tighten it but needs an unconfined seccomp profile.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+---
+# The identity build agents run as. It can deploy the application namespace and
+# nothing else: no secrets, no delete, no exec, no cluster-scoped objects.
+# Cluster bootstrap (cert-manager, CA, DNS, admission policy, secrets) is a
+# platform step a pipeline should not be able to perform.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-agent
+  namespace: jenkins
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: zero-trust
+rules:
+  - apiGroups: ["apps"]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch, create, update, patch]
+  - apiGroups: ["apps"]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [services, configmaps, serviceaccounts]
+    verbs: [get, list, watch, create, update, patch]
+  - apiGroups: [""]
+    resources: [pods, pods/log, events]
+    verbs: [get, list, watch]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [networkpolicies, ingresses]
+    verbs: [get, list, watch, create, update, patch]
+  - apiGroups: ["policy"]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch, create, update, patch]
+  - apiGroups: ["cert-manager.io"]
+    resources: [certificates]
+    verbs: [get, list, watch, create, update, patch]
+  - apiGroups: ["traefik.io"]
+    resources: [middlewares]
+    verbs: [get, list, watch, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: zero-trust
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-agent
+    namespace: jenkins
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-deployer
+---
+# Warm caches make the difference between a 2-minute and a 12-minute build.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gradle-cache
+  namespace: jenkins
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 8Gi } }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jenkins-tls
+  namespace: jenkins
+spec:
+  secretName: jenkins-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey: { algorithm: ECDSA, size: 256, rotationPolicy: Always }
+  dnsNames: [jenkins.zerotrust.localtest.me]
+  issuerRef:
+    kind: ClusterIssuer
+    name: zt-local-ca

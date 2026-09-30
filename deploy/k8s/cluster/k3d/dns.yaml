@@ -1,0 +1,31 @@
+# Split-horizon DNS for the issuer name.
+#
+# The issuer is https://auth.zerotrust.localtest.me:8443. From a browser that
+# resolves (public wildcard DNS) to 127.0.0.1 and reaches the k3d load
+# balancer. Inside a pod 127.0.0.1 is the pod itself, so the name has to be
+# pointed at the ingress controller instead - otherwise the BFF cannot do OIDC
+# discovery against the very URL the browser is redirected to, and the
+# issuer claim would differ between the two sides.
+#
+# Additive only: a new Service and the k3s-sanctioned coredns-custom ConfigMap.
+# Nothing existing in kube-system is modified.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zt-edge
+  namespace: kube-system
+spec:
+  selector: { app.kubernetes.io/name: traefik }
+  ports:
+    # Same port number the browser uses (8443), so the URL is identical on
+    # both sides. Traefik's websecure container port is also 8443.
+    - { name: websecure, port: 8443, targetPort: websecure }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  zerotrust.override: |
+    rewrite name auth.zerotrust.localtest.me zt-edge.kube-system.svc.cluster.local

@@ -23,3 +23,5 @@ dist/
 # Local env
 .env
 .env.local
+.image-tag
+deploy/.local/

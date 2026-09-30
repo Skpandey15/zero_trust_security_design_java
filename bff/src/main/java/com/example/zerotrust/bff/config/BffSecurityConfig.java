@@ -38,7 +38,7 @@ public class BffSecurityConfig {
                 .csrfTokenRepository(csrfRepository)
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/session", "/actuator/health").permitAll()
+                .requestMatchers("/api/session", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/login/**", "/oauth2/**").permitAll()
                 // ZERO TRUST DEFAULT: nothing else is reachable unauthenticated.
                 .anyRequest().authenticated())

@@ -1,0 +1,72 @@
+# Only explicitly listed paths are routed. Actuator, the H2 console and the
+# admin API are not exposed at the edge; a path that is not here does not exist
+# from outside the cluster.
+#
+# Reach it at https://zerotrust.localtest.me:8443 (localtest.me resolves to
+# 127.0.0.1; the k3d load balancer maps host 8443 -> cluster 443).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: zero-trust-security-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - secretName: zt-edge-tls
+      hosts: [zerotrust.localtest.me]
+  rules:
+    - host: zerotrust.localtest.me
+      http:
+        paths:
+          # BFF: API, and the OAuth client endpoints it owns.
+          - { path: /api,    pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
+          - { path: /oauth2, pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
+          - { path: /login,  pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
+          - { path: /logout, pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
+          # Everything else is the static shell.
+          - { path: /,       pathType: Prefix, backend: { service: { name: frontend, port: { name: http } } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: issuer
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: zero-trust-security-headers@kubernetescrd,zero-trust-auth-rate-limit@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - secretName: zt-edge-tls
+      hosts: [auth.zerotrust.localtest.me]
+  rules:
+    - host: auth.zerotrust.localtest.me
+      http:
+        paths:
+          - { path: /oauth2,       pathType: Prefix, backend: { service: { name: authorization-server, port: { name: http } } } }
+          - { path: /.well-known,  pathType: Prefix, backend: { service: { name: authorization-server, port: { name: http } } } }
+          - { path: /userinfo,     pathType: Prefix, backend: { service: { name: authorization-server, port: { name: http } } } }
+          - { path: /connect,      pathType: Prefix, backend: { service: { name: authorization-server, port: { name: http } } } }
+---
+# Plain HTTP only redirects; nothing is ever served over it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: http-redirect
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: zero-trust-https-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: zerotrust.localtest.me
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: frontend, port: { name: http } } } }
+    - host: auth.zerotrust.localtest.me
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: frontend, port: { name: http } } } }

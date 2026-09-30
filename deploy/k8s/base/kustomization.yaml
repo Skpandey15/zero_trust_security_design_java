@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zero-trust
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: zero-trust-platform
+resources:
+  - serviceaccounts.yaml
+  - postgres.yaml
+  - redis.yaml
+  - authorization-server.yaml
+  - resource-server.yaml
+  - bff.yaml
+  - frontend.yaml
+  - networkpolicies.yaml
+# Secrets (zt-db, zt-redis, zt-oidc, zt-jwt-keys) and the platform-config
+# ConfigMap are NOT here: secrets never live in git, and config is per
+# environment - see overlays/.

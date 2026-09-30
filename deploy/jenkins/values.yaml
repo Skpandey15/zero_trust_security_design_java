@@ -1,0 +1,77 @@
+# Helm values for the official jenkins/jenkins chart.
+#   helm upgrade --install jenkins jenkins/jenkins -n jenkins -f deploy/jenkins/values.yaml
+controller:
+  # Builds NEVER run on the controller. It only schedules; every build gets a
+  # fresh, disposable pod agent (defined in the Jenkinsfile).
+  numExecutors: 0
+
+  jenkinsUrl: https://jenkins.zerotrust.localtest.me:8443
+
+  resources:
+    requests: { cpu: 300m, memory: 768Mi }
+    limits: { memory: 1536Mi }
+
+  # Plugins are installed at start-up from the update centre. For a real
+  # environment, pin exact versions and bake them into an image.
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+    - job-dsl
+    - timestamper
+    - junit
+
+  serviceType: ClusterIP
+
+  ingress:
+    enabled: true
+    apiVersion: networking.k8s.io/v1
+    ingressClassName: traefik
+    hostName: jenkins.zerotrust.localtest.me
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    tls:
+      - secretName: jenkins-tls
+        hosts: [jenkins.zerotrust.localtest.me]
+
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      # Nobody is anonymous; there is no "guest can read" mode.
+      security: |
+        jenkins:
+          authorizationStrategy:
+            loggedInUsersCanDoAnything:
+              allowAnonymousRead: false
+      # The one pipeline job, defined as code so it survives a rebuilt
+      # controller. Multibranch over plain git (no GitHub API, so no rate
+      # limit); it scans every few minutes because a local cluster has no
+      # public address for a webhook to reach.
+      job: |
+        jobs:
+          - script: |
+              multibranchPipelineJob('zero-trust') {
+                displayName('zero-trust platform')
+                branchSources {
+                  git {
+                    id('zero-trust-repo')
+                    remote('https://github.com/Skpandey15/zero_trust_security_design_java.git')
+                  }
+                }
+                factory {
+                  workflowBranchProjectFactory { scriptPath('Jenkinsfile') }
+                }
+                triggers { periodicFolderTrigger { interval('5m') } }
+                orphanedItemStrategy {
+                  discardOldItems { numToKeep(10) }
+                }
+              }
+
+# Agent pods are defined per pipeline in the Jenkinsfile, not here.
+agent:
+  enabled: false
+
+persistence:
+  size: 5Gi
