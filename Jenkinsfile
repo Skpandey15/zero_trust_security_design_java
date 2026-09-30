@@ -90,6 +90,10 @@ spec:
         sh 'git config --global --add safe.directory "$WORKSPACE"'
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short=12 HEAD').trim()
+          // The gate is ON unless someone explicitly turns it off. On a branch's first
+          // run Jenkins has not registered the parameter yet, so params.SCAN_GATE is
+          // null - and null must not mean "off".
+          env.SCAN_EXIT = (params.SCAN_GATE == null || params.SCAN_GATE) ? '1' : '0'
         }
         echo "image tag ${env.IMAGE_TAG}, branch ${env.BRANCH_NAME}"
       }
@@ -173,7 +177,7 @@ spec:
       steps {
         container('trivy') {
           sh '''
-            EXIT=0; [ "${SCAN_GATE}" = "true" ] && EXIT=1
+            EXIT=${SCAN_EXIT}
             for svc in ${SERVICES_JVM} frontend; do
               trivy image --insecure --no-progress --ignore-unfixed \
                 --severity HIGH,CRITICAL --exit-code ${EXIT} \
