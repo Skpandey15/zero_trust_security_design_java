@@ -23,6 +23,13 @@ java {
     }
 }
 
+// Security pins. Boot 4.1.1 is the latest release and still manages tomcat 11.0.24
+// (three CRITICAL CVEs, fixed in 11.0.25) and jackson 3.1.5 (HIGH, fixed in 3.1.6),
+// which the pipeline's image scan flagged. Remove each override once Boot's own
+// managed version reaches it.
+ext['tomcat.version'] = '11.0.25'
+ext['jackson-bom.version'] = '3.1.6'
+
 repositories {
     mavenCentral()
 }
