@@ -1,0 +1,8 @@
+# Shell scripts and the Gradle wrapper run inside Linux containers and WSL;
+# CRLF line endings break their shebang line.
+*.sh      text eol=lf
+gradlew   text eol=lf
+Dockerfile text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.bat     text eol=crlf

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zero-trust
+  labels:
+    # Pod Security Admission, restricted profile: enforced, not just audited.
+    # Every workload below is written to satisfy it (non-root, no privilege
+    # escalation, all capabilities dropped, RuntimeDefault seccomp).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

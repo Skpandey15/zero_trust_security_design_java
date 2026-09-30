@@ -1,0 +1,83 @@
+# WP-BE-01. Deliberately ONE replica: the OAuth2 authorization state and the
+# form-login session are still in memory (design document 27.8), so a second
+# replica would fail authorization-code exchanges that land on the other pod.
+# Recreate strategy for the same reason - two pods must never overlap.
+apiVersion: v1
+kind: Service
+metadata:
+  name: authorization-server
+  labels: { app.kubernetes.io/name: authorization-server }
+spec:
+  selector: { app.kubernetes.io/name: authorization-server }
+  ports:
+    - { name: http, port: 9000, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authorization-server
+  labels: { app.kubernetes.io/name: authorization-server }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: authorization-server }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: authorization-server }
+    spec:
+      serviceAccountName: authorization-server
+      enableServiceLinks: false   # the injected REDIS_PORT=tcp://... would shadow app config
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001          # lets uid 10001 read the mounted signing key (mode 0440)
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: authorization-server
+          image: zero-trust/authorization-server:__TAG__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 9000 }
+          env:
+            - { name: SPRING_PROFILES_ACTIVE, value: dev }
+            - { name: SERVER_PORT, value: "9000" }
+            - name: AUTH_ISSUER
+              valueFrom: { configMapKeyRef: { name: platform-config, key: issuer } }
+            - { name: DB_URL, value: "jdbc:postgresql://postgres:5432/authdb" }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: zt-db, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: zt-db, key: password } }
+            - name: APP_OIDC_SERVICECLIENTSECRET
+              valueFrom: { secretKeyRef: { name: zt-oidc, key: service-client-secret } }
+            # A stable signing key. Without it the server generates an
+            # ephemeral one and every token dies on restart.
+            - { name: APP_SECURITY_RSAPRIVATEKEY, value: "file:/keys/private.pem" }
+            - { name: APP_SECURITY_RSAPUBLICKEY, value: "file:/keys/public.pem" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 768Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: keys, mountPath: /keys, readOnly: true }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        - name: keys
+          secret: { secretName: zt-jwt-keys, defaultMode: 0440 }

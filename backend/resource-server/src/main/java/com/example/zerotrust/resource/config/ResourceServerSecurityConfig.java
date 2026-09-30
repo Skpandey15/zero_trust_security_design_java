@@ -46,7 +46,7 @@ public class ResourceServerSecurityConfig {
             .csrf(csrf -> csrf.disable())          // bearer-token API; no cookies here
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 // ZERO TRUST DEFAULT: anything not listed above does not exist.
                 .anyRequest().denyAll())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder)))

@@ -1,0 +1,93 @@
+# In-cluster image registry: where the pipeline pushes and the nodes pull.
+#
+# Two names for one registry, deliberately:
+#   registry.registry.svc.cluster.local:5000   what Kaniko pushes to (cluster DNS)
+#   localhost:30500                            what the nodes pull from (NodePort);
+#       containerd treats localhost as plain-HTTP-safe, so no node
+#       reconfiguration is needed and the k3d cluster is not restarted.
+#
+# LOCAL ONLY: no authentication and no TLS. A real registry has both.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-data
+  namespace: registry
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 10Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: registry
+  labels: { app.kubernetes.io/name: registry }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: registry }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: registry }
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: registry
+          image: registry:3
+          ports:
+            - { name: http, containerPort: 5000 }
+          env:
+            - { name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            httpGet: { path: /v2/, port: http }
+          livenessProbe:
+            httpGet: { path: /v2/, port: http }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/registry }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: registry-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: registry
+spec:
+  selector: { app.kubernetes.io/name: registry }
+  ports:
+    - { name: http, port: 5000, targetPort: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-nodeport
+  namespace: registry
+spec:
+  type: NodePort
+  selector: { app.kubernetes.io/name: registry }
+  ports:
+    - { name: http, port: 5000, targetPort: http, nodePort: 30500 }

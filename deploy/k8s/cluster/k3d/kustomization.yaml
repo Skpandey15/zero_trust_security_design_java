@@ -1,0 +1,8 @@
+# Cluster-scoped and kube-system pieces. Applied separately from the app
+# because a namespace transformer would wrongly re-home them.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - pki.yaml
+  - dns.yaml
+  - admission-policy.yaml

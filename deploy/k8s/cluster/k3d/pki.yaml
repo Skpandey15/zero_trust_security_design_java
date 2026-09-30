@@ -1,0 +1,33 @@
+# A private CA for the local cluster, bootstrapped by cert-manager.
+#   self-signed root issuer -> CA certificate -> CA issuer -> leaf certificates
+# The CA secret lives in the cert-manager namespace and never leaves it; only
+# the CA *certificate* (ca.crt) is distributed to clients that need to trust it.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: zt-selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: zt-local-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: zero-trust-local-ca
+  secretName: zt-local-ca
+  duration: 87600h
+  privateKey: { algorithm: ECDSA, size: 256 }
+  issuerRef:
+    kind: ClusterIssuer
+    name: zt-selfsigned-bootstrap
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: zt-local-ca
+spec:
+  ca:
+    secretName: zt-local-ca

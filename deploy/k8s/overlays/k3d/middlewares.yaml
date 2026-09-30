@@ -1,0 +1,36 @@
+# Traefik middlewares (edge controls). Referenced from ingress.yaml as
+# zero-trust-<name>@kubernetescrd.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+spec:
+  redirectScheme:
+    scheme: https
+    port: "8443"
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    contentTypeNosniff: true
+    frameDeny: true
+    referrerPolicy: no-referrer
+---
+# Coarse per-client brake on the identity endpoints. It is not a substitute
+# for account lockout in the Authorization Server - it just keeps a single
+# source from hammering the token and login endpoints.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-rate-limit
+spec:
+  rateLimit:
+    average: 20
+    period: 1s
+    burst: 40

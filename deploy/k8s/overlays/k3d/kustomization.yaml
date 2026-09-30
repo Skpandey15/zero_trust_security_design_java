@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zero-trust
+resources:
+  - ../../base
+  - certificate.yaml
+  - middlewares.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: platform-config
+    literals:
+      # The issuer is one URL everywhere: the browser is redirected to it, the
+      # BFF discovers it, and the Resource Server checks the iss claim against
+      # it. Inside the cluster the name is resolved by the coredns override in
+      # ../../cluster/k3d, so the same string works on both sides.
+      - issuer=https://auth.zerotrust.localtest.me:8443
+      - app-host=zerotrust.localtest.me
+generatorOptions:
+  disableNameSuffixHash: true
