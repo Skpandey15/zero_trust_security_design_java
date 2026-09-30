@@ -20,6 +20,7 @@ spring:
 app:
   bff:
     api-base-url: ${API_BASE_URL:http://localhost:9100}
+    auth-server-base-url: ${AUTH_SERVER_URL:http://localhost:9000}
 
 management:
   endpoints:
@@ -35,8 +36,11 @@ spring:
       on-profile: local
   # In-memory sessions: single replica only. See §27.8 - shared session storage
   # is required before more than one replica can serve the interactive flow.
-  session:
-    store-type: none
+  autoconfigure:
+    exclude:
+      # Boot 4 dropped spring.session.store-type; excluding the Redis session
+      # auto-configuration is what selects the in-memory container session.
+      - org.springframework.boot.session.data.redis.autoconfigure.SessionDataRedisAutoConfiguration
   security:
     oauth2:
       client:
@@ -44,7 +48,7 @@ spring:
           zero-trust-web:
             provider: zero-trust
             client-id: ${OAUTH_CLIENT_ID:zero-trust-web}
-            client-secret: ${OAUTH_CLIENT_SECRET:}
+            client-secret: ${OAUTH_CLIENT_SECRET:local-dev-bff-secret}
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope: openid, profile

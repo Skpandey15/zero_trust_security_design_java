@@ -1,40 +1,38 @@
-import { useEffect, useState } from "react";
-import { getSession, type Session } from "./api/client";
+import { Link, Route, Routes } from "react-router-dom";
+import { useSession } from "./session";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 /**
- * WP-UI-01 shell.
- *
- * ADR-SEC-007: this component never sees a token. Authentication state is
+ * ADR-SEC-007: nothing here ever sees a token. Authentication state is
  * whatever the BFF reports for the session cookie the browser holds, and that
  * cookie is HttpOnly, so nothing here can read it either.
+ *
+ * Still to build (WP-UI-02/03): /verify-email, /mfa/setup, /passkeys, the
+ * password-reset and recovery routes, /step-up and the Security Center. Each
+ * needs an Authorization Server capability that does not exist yet.
  */
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getSession()
-      .then(setSession)
-      .catch(() => setSession(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <main>Checking session…</main>;
+  const { loading } = useSession();
 
   return (
-    <main>
-      <h1>Zero Trust Console</h1>
-      {session?.authenticated ? (
-        <p>Signed in as {session.subject}</p>
-      ) : (
-        <p>Not signed in.</p>
-      )}
-      <p>
-        <small>
-          WP-UI-01 scaffold. No access or refresh token is held in the browser —
-          see ADR-SEC-007.
-        </small>
-      </p>
-    </main>
+    <>
+      <header className="bar">
+        <Link to="/" className="brand">Zero Trust Console</Link>
+      </header>
+      <main>
+        {loading ? (
+          <p>Checking session…</p>
+        ) : (
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="*" element={<section><h1>Not found</h1><p><Link to="/">Home</Link></p></section>} />
+          </Routes>
+        )}
+      </main>
+    </>
   );
 }

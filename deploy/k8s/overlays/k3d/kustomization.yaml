@@ -15,5 +15,8 @@ configMapGenerator:
       # ../../cluster/k3d, so the same string works on both sides.
       - issuer=https://auth.zerotrust.localtest.me:8443
       - app-host=zerotrust.localtest.me
+      # The browser-facing origin of the app: the OAuth redirect and post-logout
+      # URIs the Authorization Server registers for the BFF are derived from it.
+      - app-origin=https://zerotrust.localtest.me:8443
 generatorOptions:
   disableNameSuffixHash: true

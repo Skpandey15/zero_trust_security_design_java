@@ -18,8 +18,30 @@ export interface Session {
   authenticationLevel?: string;
 }
 
+export interface RegisterInput {
+  email: string;
+  displayName: string;
+  password: string;
+}
+
+/** An error the BFF (or the Authorization Server behind it) reported. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(status: number, message: string, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 const CSRF_COOKIE = "XSRF-TOKEN";
 const CSRF_HEADER = "X-XSRF-TOKEN";
+
+/** The BFF's OAuth client entry point. Navigating here starts Authorization Code + PKCE. */
+const LOGIN_URL = "/oauth2/authorization/zero-trust-web";
 
 function readCsrfToken(): string | null {
   // Readable by design: the anti-CSRF token is not a credential. The session
@@ -35,7 +57,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (mutating) {
     const csrf = readCsrfToken();
     if (csrf) headers.set(CSRF_HEADER, csrf);
-    headers.set("Content-Type", "application/json");
+    if (init.body) headers.set("Content-Type", "application/json");
   }
 
   const response = await fetch(path, {
@@ -44,16 +66,50 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     credentials: "same-origin", // send the session cookie, same-origin only
   });
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+  // Some successful responses have no body, and a proxy error page is not JSON.
+  const text = await response.text();
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : undefined;
+  } catch {
+    data = undefined;
   }
-  return (await response.json()) as T;
+
+  if (!response.ok) {
+    const body = (data ?? {}) as { code?: string; message?: string };
+    throw new ApiError(
+      response.status,
+      body.message ?? `${response.status} ${response.statusText}`,
+      body.code,
+    );
+  }
+  return data as T;
 }
 
 export function getSession(): Promise<Session> {
   return request<Session>("/api/session");
 }
 
-export function logout(): Promise<void> {
-  return request<void>("/api/session/logout", { method: "POST" });
+export function register(input: RegisterInput): Promise<unknown> {
+  return request<unknown>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Sign in. This is a top-level navigation, not a fetch: the browser is sent to
+ * the Authorization Server to enter its credentials there, and returns to the
+ * BFF, which completes the exchange. The password never passes through this app.
+ */
+export function startLogin(): void {
+  window.location.assign(LOGIN_URL);
+}
+
+/** Ends the BFF session, then the Authorization Server's, by navigating to its end-session URL. */
+export async function logout(): Promise<void> {
+  const result = await request<{ logoutUrl?: string }>("/api/session/logout", {
+    method: "POST",
+  });
+  window.location.assign(result?.logoutUrl ?? "/");
 }

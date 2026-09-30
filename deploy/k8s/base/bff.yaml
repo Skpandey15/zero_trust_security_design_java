@@ -77,6 +77,7 @@ spec:
             - name: AUTH_ISSUER
               valueFrom: { configMapKeyRef: { name: platform-config, key: issuer } }
             - { name: API_BASE_URL, value: "http://resource-server:9100" }
+            - { name: AUTH_SERVER_URL, value: "http://authorization-server:9000" }
             - { name: REDIS_HOST, value: redis }
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom: { secretKeyRef: { name: zt-redis, key: password } }
