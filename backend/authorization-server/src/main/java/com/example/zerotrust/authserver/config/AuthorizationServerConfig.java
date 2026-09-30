@@ -21,6 +21,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,7 +63,10 @@ public class AuthorizationServerConfig {
     @Bean
     RegisteredClientRepository registeredClientRepository(
             PasswordEncoder passwordEncoder,
-            @Value("${app.oidc.service-client-secret:service-secret}") String serviceSecret) {
+            @Value("${app.oidc.service-client-secret:service-secret}") String serviceSecret,
+            @Value("${app.oidc.bff-client-secret:local-dev-bff-secret}") String bffSecret,
+            @Value("${app.oidc.bff-redirect-origins:http://localhost:5173,http://localhost:8080}")
+            List<String> bffOrigins) {
 
         // Public SPA client: Authorization Code + PKCE, no client secret.
         RegisteredClient spa = RegisteredClient.withId(UUID.randomUUID().toString())
@@ -90,7 +94,31 @@ public class AuthorizationServerConfig {
                 .scope("api.read")
                 .build();
 
-        return new InMemoryRegisteredClientRepository(spa, service);
+        // The BFF (ADR-SEC-007): a CONFIDENTIAL client. It holds the tokens
+        // server-side and the browser never sees them. PKCE is still required -
+        // a confidential client authenticates the token request, PKCE binds the
+        // code to the browser session that started the flow (ADR-SEC-003).
+        // Redirect URIs are exact-match per origin; the origin list is
+        // environment configuration, not something the request can supply.
+        RegisteredClient.Builder bff = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("zero-trust-web")
+                .clientSecret(passwordEncoder.encode(bffSecret))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .clientSettings(ClientSettings.builder()
+                        .requireProofKey(true)
+                        .requireAuthorizationConsent(false)
+                        .build());
+        for (String origin : bffOrigins) {
+            String o = origin.trim();
+            bff.redirectUri(o + "/login/oauth2/code/zero-trust-web");
+            bff.postLogoutRedirectUri(o + "/");
+        }
+
+        return new InMemoryRegisteredClientRepository(spa, service, bff.build());
     }
 
     @Bean

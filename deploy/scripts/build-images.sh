@@ -4,7 +4,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)$(git diff --quiet HEAD -- . || echo -dirty)}"
+# A dirty tree gets a suffix derived from its CONTENT. A fixed "-dirty" would
+# reuse the same tag for different code, so the cluster would see no change and
+# never roll the pods.
+dirty_suffix() {
+  git diff --quiet HEAD -- . && [ -z "$(git ls-files -o --exclude-standard)" ] && return 0
+  printf -- '-dirty-%s' "$( { git diff HEAD; git ls-files -o --exclude-standard | xargs -r cat; } | sha256sum | cut -c1-8)"
+}
+TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)$(dirty_suffix)}"
 export DOCKER_BUILDKIT=1
 
 # The three Gradle builds run one after another: they share a BuildKit cache

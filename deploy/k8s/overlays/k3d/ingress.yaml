@@ -24,7 +24,8 @@ spec:
           # BFF: API, and the OAuth client endpoints it owns.
           - { path: /api,    pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
           - { path: /oauth2, pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
-          - { path: /login,  pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
+          # Only the OAuth callback. /login itself is the SPA's route, so it must NOT be routed here.
+          - { path: /login/oauth2, pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
           - { path: /logout, pathType: Prefix, backend: { service: { name: bff, port: { name: http } } } }
           # Everything else is the static shell.
           - { path: /,       pathType: Prefix, backend: { service: { name: frontend, port: { name: http } } } }
