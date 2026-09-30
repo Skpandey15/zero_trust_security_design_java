@@ -53,6 +53,12 @@ spec:
               valueFrom: { secretKeyRef: { name: zt-db, key: password } }
             - name: APP_OIDC_SERVICECLIENTSECRET
               valueFrom: { secretKeyRef: { name: zt-oidc, key: service-client-secret } }
+            # The BFF is a confidential client; its secret and the origins it may
+            # redirect back to are configuration, never request input.
+            - name: APP_OIDC_BFFCLIENTSECRET
+              valueFrom: { secretKeyRef: { name: zt-oidc, key: bff-client-secret } }
+            - name: APP_OIDC_BFFREDIRECTORIGINS
+              valueFrom: { configMapKeyRef: { name: platform-config, key: app-origin } }
             # A stable signing key. Without it the server generates an
             # ephemeral one and every token dies on restart.
             - { name: APP_SECURITY_RSAPRIVATEKEY, value: "file:/keys/private.pem" }

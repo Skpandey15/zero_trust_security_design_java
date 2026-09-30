@@ -4,10 +4,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
@@ -30,8 +33,16 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 public class BffSecurityConfig {
 
     @Bean
-    SecurityFilterChain bffSecurityFilterChain(HttpSecurity http, BffProperties props) throws Exception {
+    SecurityFilterChain bffSecurityFilterChain(HttpSecurity http, BffProperties props,
+                                               ClientRegistrationRepository registrations) throws Exception {
         CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+
+        // ADR-SEC-003: PKCE on every authorization request. Spring applies it to
+        // public clients by default; for this confidential client it must be
+        // asked for, or the code is bound to nothing but the client secret.
+        DefaultOAuth2AuthorizationRequestResolver authorizationRequests =
+                new DefaultOAuth2AuthorizationRequestResolver(registrations, "/oauth2/authorization");
+        authorizationRequests.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
 
         http
             .csrf(csrf -> csrf
@@ -39,11 +50,18 @@ public class BffSecurityConfig {
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/session", "/actuator/health", "/actuator/health/**").permitAll()
+                // Registration is the one unauthenticated write; CSRF still applies to it.
+                .requestMatchers("/api/auth/register").permitAll()
                 .requestMatchers("/login/**", "/oauth2/**").permitAll()
                 // ZERO TRUST DEFAULT: nothing else is reachable unauthenticated.
                 .anyRequest().authenticated())
             // The BFF is a confidential OAuth client; tokens stay server-side.
-            .oauth2Login(Customizer.withDefaults())
+            .oauth2Login(login -> login
+                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(authorizationRequests))
+                // The SPA owns the pages; the BFF only redirects to them.
+                .defaultSuccessUrl("/", true)
+                .failureUrl("/login?error"))
+            .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
             .headers(headers -> headers
                 .httpStrictTransportSecurity(hsts -> hsts
                         .includeSubDomains(true)

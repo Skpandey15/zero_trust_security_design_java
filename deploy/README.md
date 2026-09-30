@@ -85,7 +85,7 @@ These are real gaps, listed rather than hidden:
 - **Authorization Server is a single replica** — its authorization state and login session are still in memory (design document 27.8).
 - **Postgres and Redis are in-cluster single instances**, Redis unencrypted. Production would use managed, replicated, encrypted services.
 - **No observability stack.** Actuator exposes Prometheus metrics, but nothing scrapes them in this cluster and there is no log shipping or tracing.
-- **App-level gap:** the Authorization Server registers OAuth clients `auth-ui` and `service-account`, while the BFF is configured as `zero-trust-web`. The deployment is healthy, but the BFF login flow will not complete until that client is registered (WP-UI-01).
+- **Sign-in is password-only.** The OIDC login path does not enforce MFA or lockout (those are in the Authorization Server's separate `/api/auth` pipeline), and `/mfa/setup` in the UI is blocked until token exchange exists (ADR-SEC-016).
 
 ## Verified on the local cluster
 

@@ -32,9 +32,15 @@ npm run typecheck
 
 ## Status
 
-Shell only. It reports whether a session exists and renders accordingly.
+**Working end to end** (verified against the deployed stack): `/` (session state, sign out), `/login`, `/register`.
 
-**Still to build** — WP-UI-02: `/register`, `/verify-email`, `/login`, `/mfa/setup`, `/passkeys`, `/forgot-password`, `/reset-password`, `/recovery`, `/step-up`. WP-UI-03: the Security Center.
+- `/login` is deliberately not a credentials form. It sends the browser to the Authorization Server's own sign-in page (Authorization Code + PKCE, run by the BFF), so no password ever passes through this app.
+- `/register` posts to the BFF, which relays to the Authorization Server.
+- Sign-out ends the BFF session and the Authorization Server's.
+
+**Still to build** — WP-UI-02: `/verify-email`, `/mfa/setup`, `/passkeys`, `/forgot-password`, `/reset-password`, `/recovery`, `/step-up`. WP-UI-03: the Security Center. Each needs an Authorization Server capability that does not exist yet (email verification, WebAuthn, recovery flows, a device/session API), and `/mfa/setup` is blocked by the token split described below.
+
+**Blocked, and why.** The Authorization Server has two token systems. Its own `/api` (including `/api/users/me/mfa/*`) accepts only tokens with its own audience, and refuses OIDC tokens on purpose (ADR-SEC-008). The BFF holds an OIDC token, so it cannot call MFA setup until token exchange (ADR-SEC-016) exists. Sign-in is therefore password-only for now.
 
 Two constraints those routes inherit, both from ADRs rather than taste:
 

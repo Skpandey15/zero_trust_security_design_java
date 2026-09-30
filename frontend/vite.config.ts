@@ -9,10 +9,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: false,
-      },
+      // Everything the BFF owns. The SPA's own /login and /register routes are
+      // NOT proxied - only the OAuth client endpoints under /oauth2 and /login/oauth2.
+      "/api": { target: "http://localhost:8080", changeOrigin: false },
+      "/oauth2": { target: "http://localhost:8080", changeOrigin: false },
+      "/login/oauth2": { target: "http://localhost:8080", changeOrigin: false },
     },
   },
 });

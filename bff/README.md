@@ -22,11 +22,15 @@ The consequence, stated plainly because it is a real cost: **cookie authenticati
 
 ## Status
 
-Skeleton. It builds, starts, and enforces the security posture — it does not authenticate anyone yet.
+The login flow works end to end (verified on the deployed stack).
 
-**Present:** session cookie configuration (`HttpOnly`, `Secure`, `SameSite`), cookie-based CSRF, HSTS and CSP headers, deny-by-default authorization, the confidential OAuth client, and `/api/session`.
+**Present:** session cookie configuration (`HttpOnly`, `Secure`, `SameSite`), cookie-based CSRF with the token cookie issued on every response, HSTS and CSP headers, deny-by-default authorization, the confidential OAuth client with **PKCE**, Redis-backed sessions across replicas, `/api/session`, `/api/session/logout` (ends both the BFF and Authorization Server sessions), and `/api/auth/register` (relayed to the Authorization Server over the cluster-internal address).
 
-**Not present:** the login flow itself, and everything in WP-UI-02 and WP-UI-03.
+**Not present:** forwarding to Resource Servers with an audience-restricted token, token refresh, and everything in WP-UI-02 and WP-UI-03 beyond login/register.
+
+**Known gap:** the interactive sign-in is password-only. MFA and lockout live in the Authorization Server's `/api/auth` pipeline and are not enforced on the OIDC login path.
+
+**Boot 4 note.** `spring.session.store-type` no longer exists, and the plain `spring-session-data-redis` dependency no longer auto-configures — the Boot starter is required, or sessions silently stay in each pod's memory and a login started on one replica fails on another. The `local` and `test` profiles exclude the Redis auto-configuration instead.
 
 ## Two configuration notes
 

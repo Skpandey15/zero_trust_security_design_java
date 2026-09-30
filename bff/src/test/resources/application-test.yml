@@ -2,8 +2,9 @@
 # OIDC discovery and never needs the Authorization Server running. A gate that
 # depends on another service being up is a gate that gets disabled.
 spring:
-  session:
-    store-type: none
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.session.data.redis.autoconfigure.SessionDataRedisAutoConfiguration
   security:
     oauth2:
       client:

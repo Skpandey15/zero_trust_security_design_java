@@ -6,11 +6,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record BffProperties(
         /** Base URL of the Resource Server the BFF forwards to. */
         String apiBaseUrl,
+        /**
+         * Cluster-internal base URL of the Authorization Server, for the calls
+         * the BFF makes on the browser's behalf (registration). Deliberately
+         * not the public issuer URL: this traffic never leaves the cluster.
+         */
+        String authServerBaseUrl,
         /** Content-Security-Policy. Tightened per environment; never widened for convenience. */
         String contentSecurityPolicy) {
 
     public BffProperties {
         if (apiBaseUrl == null || apiBaseUrl.isBlank()) apiBaseUrl = "http://localhost:9100";
+        if (authServerBaseUrl == null || authServerBaseUrl.isBlank()) authServerBaseUrl = "http://localhost:9000";
         if (contentSecurityPolicy == null || contentSecurityPolicy.isBlank()) {
             contentSecurityPolicy = "default-src 'self'; frame-ancestors 'none'; object-src 'none'";
         }
