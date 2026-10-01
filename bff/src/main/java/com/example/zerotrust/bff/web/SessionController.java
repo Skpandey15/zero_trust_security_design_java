@@ -17,6 +17,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,11 +48,35 @@ public class SessionController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("authenticated", true);
         body.put("subject", user.getSubject());
-        // Assurance level is read from server-side session state, not from
-        // anything the browser supplied (ADR-SEC-011). The interactive login
-        // is password-only today; MFA on this path is not enforced yet.
-        body.put("authenticationLevel", "PASSWORD");
+        // What THIS session proved, read from the ID token's amr claim that the
+        // Authorization Server wrote from the authenticated session - never from
+        // anything the browser supplied (ADR-SEC-004, ADR-SEC-011).
+        body.put("authenticationLevel", levelOf(user));
+        String settings = securitySettingsUrl(authentication);
+        if (settings != null) {
+            body.put("securitySettingsUrl", settings);
+        }
         return body;
+    }
+
+    /** "MFA" only when the session proved a second factor; anything else is password assurance. */
+    static String levelOf(OidcUser user) {
+        List<String> amr = user.getClaimAsStringList("amr");
+        return amr != null && amr.contains("otp") ? "MFA" : "PASSWORD";
+    }
+
+    /**
+     * Where the user manages two-step verification. It lives on the Authorization
+     * Server, not in the SPA: the TOTP secret is the factor itself, and showing
+     * it in the SPA would put it where any script in that page can read it. A URL
+     * is not a credential, so handing it to the browser is fine.
+     */
+    private String securitySettingsUrl(Authentication authentication) {
+        if (!(authentication instanceof OAuth2AuthenticationToken oauth)) return null;
+        ClientRegistration registration = registrations.findByRegistrationId(oauth.getAuthorizedClientRegistrationId());
+        if (registration == null) return null;
+        String issuer = registration.getProviderDetails().getIssuerUri();
+        return issuer == null ? null : issuer.replaceAll("/+$", "") + "/oauth2/account/mfa";
     }
 
     /**

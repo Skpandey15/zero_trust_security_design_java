@@ -7,6 +7,7 @@ deploy/
 ├── scripts/
 │   ├── build-images.sh     four images, tagged with the git SHA (never :latest)
 │   ├── deploy-local.sh     bootstrap: cert-manager -> cluster config -> secrets, then build -> import -> apply
+│   ├── smoke-test.sh       end-to-end sign-in journey on the deployed stack (register, sign in, turn on MFA, refuse a password alone)
 │   ├── cluster-up.sh       after a reboot: start any stopped node, wait until the platform is healthy
 │   ├── apply.sh            render the overlay and apply it (shared by deploy-local and Jenkins)
 │   └── teardown-local.sh   removes the zero-trust namespace; leaves other namespaces alone
@@ -94,7 +95,9 @@ These are real gaps, listed rather than hidden:
 - **Authorization Server is a single replica** — its authorization state and login session are still in memory (design document 27.8).
 - **Postgres and Redis are in-cluster single instances**, Redis unencrypted. Production would use managed, replicated, encrypted services.
 - **No observability stack.** Actuator exposes Prometheus metrics, but nothing scrapes them in this cluster and there is no log shipping or tracing.
-- **Sign-in is password-only.** The OIDC login path does not enforce MFA or lockout (those are in the Authorization Server's separate `/api/auth` pipeline), and `/mfa/setup` in the UI is blocked until token exchange exists (ADR-SEC-016).
+- **Two-step verification is TOTP only, with sharp edges.** It is enforced on the interactive sign-in page (lockout, throttle, single-use codes). But there is no way to switch it off or recover from a lost authenticator (ADR-SEC-005), no QR code (manual key or `otpauth://` link only), no WebAuthn/passkeys, and an account without it signs in at password assurance rather than being refused: the risk-based step-up exists on the token API only, where it can answer with an enrolment token, whereas the sign-in page cannot, and a refusal with no way to comply is a lockout.
+- **`amr` is recorded but not yet demanded.** Tokens now say what the session proved, but nothing requires MFA assurance for any operation: the Resource Server has no endpoints yet.
+- **The smoke test is not in the pipeline.** `deploy/scripts/smoke-test.sh` drives the real ingress; a Jenkins agent pod cannot reach `*.localtest.me` (it resolves to its own loopback), so it is run by hand after a deploy.
 
 ## Verified on the local cluster
 

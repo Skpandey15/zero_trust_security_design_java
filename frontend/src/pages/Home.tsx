@@ -28,8 +28,18 @@ export default function Home() {
         </p>
         <dl className="facts">
           <dt>Sign-in strength</dt>
-          <dd>{session.authenticationLevel === "PASSWORD" ? "Password only" : session.authenticationLevel}</dd>
+          <dd>
+            {session.authenticationLevel === "MFA"
+              ? "Password and authenticator code"
+              : "Password only"}
+          </dd>
         </dl>
+        {session.authenticationLevel !== "MFA" && (
+          <p className="hint">
+            Anyone with your password could sign in as you.{" "}
+            <Link to="/mfa/setup">Turn on two-step verification</Link>
+          </p>
+        )}
         {error && <p role="alert" className="error">{error}</p>}
         <button onClick={signOut} disabled={busy}>
           {busy ? "Signing out…" : "Sign out"}

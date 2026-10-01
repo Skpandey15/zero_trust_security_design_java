@@ -15,7 +15,10 @@
 export interface Session {
   authenticated: boolean;
   subject?: string;
+  /** What THIS session proved: "MFA" only if a second factor was verified, else "PASSWORD". */
   authenticationLevel?: string;
+  /** Where two-step verification is managed - on the Authorization Server, not in this app. */
+  securitySettingsUrl?: string;
 }
 
 export interface RegisterInput {

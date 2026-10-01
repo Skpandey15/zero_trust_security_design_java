@@ -32,15 +32,18 @@ npm run typecheck
 
 ## Status
 
-**Working end to end** (verified against the deployed stack): `/` (session state, sign out), `/login`, `/register`.
+**Working end to end** (verified against the deployed stack by `deploy/scripts/smoke-test.sh`): `/` (session state and sign-in strength, sign out), `/login`, `/register`, `/mfa/setup`.
 
 - `/login` is deliberately not a credentials form. It sends the browser to the Authorization Server's own sign-in page (Authorization Code + PKCE, run by the BFF), so no password ever passes through this app.
 - `/register` posts to the BFF, which relays to the Authorization Server.
 - Sign-out ends the BFF session and the Authorization Server's.
+- `/mfa/setup` is a hand-off, not a form. The TOTP secret *is* the second factor, so it is shown on the Authorization Server's own page: anything rendered in this app could be read by a script injected into it. The server demands a recent sign-in before it adds a factor (ADR-SEC-004). After enrolment the session ends, and the next sign-in asks for a code.
 
-**Still to build** — WP-UI-02: `/verify-email`, `/mfa/setup`, `/passkeys`, `/forgot-password`, `/reset-password`, `/recovery`, `/step-up`. WP-UI-03: the Security Center. Each needs an Authorization Server capability that does not exist yet (email verification, WebAuthn, recovery flows, a device/session API), and `/mfa/setup` is blocked by the token split described below.
+**Still to build** — WP-UI-02: `/verify-email`, `/passkeys`, `/forgot-password`, `/reset-password`, `/recovery`, `/step-up`. WP-UI-03: the Security Center. Each needs an Authorization Server capability that does not exist yet (email verification, WebAuthn, recovery flows, a device/session API).
 
-**Blocked, and why.** The Authorization Server has two token systems. Its own `/api` (including `/api/users/me/mfa/*`) accepts only tokens with its own audience, and refuses OIDC tokens on purpose (ADR-SEC-008). The BFF holds an OIDC token, so it cannot call MFA setup until token exchange (ADR-SEC-016) exists. Sign-in is therefore password-only for now.
+**Not yet possible: switching two-step verification off or resetting it.** That is a recovery flow (ADR-SEC-005); until it exists, a lost authenticator locks the account out.
+
+**Not yet possible: calling APIs on the user's behalf.** The Authorization Server's own `/api` refuses OIDC tokens on purpose (ADR-SEC-008), and the BFF holds an OIDC token. Forwarding to a Resource Server needs token exchange (ADR-SEC-016), which is the next slice.
 
 Two constraints those routes inherit, both from ADRs rather than taste:
 
