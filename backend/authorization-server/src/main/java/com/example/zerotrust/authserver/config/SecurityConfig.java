@@ -7,7 +7,15 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpStatus;
+import com.example.zerotrust.authserver.config.InteractiveLoginAuthenticationProvider.LoginDetails;
+import com.example.zerotrust.authserver.web.AccountMfaController;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -24,7 +32,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -93,17 +103,36 @@ public class SecurityConfig {
     /**
      * Interactive login chain for the OAuth2 authorization_code flow: a user hitting
      * /oauth2/authorize without a session is redirected here to authenticate via the
-     * form-login page (username/password checked against the JPA user store with
-     * Argon2id). Session-based; CSRF stays enabled for the login POST.
+     * form-login page. Session-based; CSRF stays enabled for the login POST.
      *
-     * NOTE: this path authenticates password-only — MFA / lockout / step-up (in the
-     * custom /api/auth pipeline) are not yet enforced on the OIDC login. Tracked as
-     * a follow-up (an MFA-aware authentication flow).
+     * <p>Authentication goes through {@link InteractiveLoginAuthenticationProvider},
+     * which applies the same lockout, throttle and mandatory second factor as the
+     * token API. The manager is built explicitly so this chain can only ever
+     * authenticate through that provider. Today Spring would pick the same provider
+     * anyway (it is the only AuthenticationProvider bean, so it becomes the global
+     * one), but that is an accident of what else is in the context: add a second
+     * provider bean or a different default and a password-only path could reappear
+     * silently. The explicit manager removes the dependence, and
+     * InteractiveMfaLoginTest fails if the stock username/password provider is
+     * ever back in front of this form.
      */
     @Bean
     @Order(3)
-    SecurityFilterChain webLoginSecurityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain webLoginSecurityFilterChain(HttpSecurity http,
+                                                    InteractiveLoginAuthenticationProvider loginProvider) throws Exception {
+        // Stamp the moment of authentication: factor changes demand a RECENT sign-in,
+        // not merely an open session (ADR-SEC-004).
+        SavedRequestAwareAuthenticationSuccessHandler onSuccess = new SavedRequestAwareAuthenticationSuccessHandler() {
+            @Override
+            public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+                                                Authentication authentication) throws IOException, ServletException {
+                request.getSession().setAttribute(AccountMfaController.AUTH_TIME, Instant.now());
+                super.onAuthenticationSuccess(request, response, authentication);
+            }
+        };
+
         http
+            .authenticationManager(new ProviderManager(loginProvider))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/oauth2/login", "/error").permitAll()
                 .anyRequest().authenticated())
@@ -112,6 +141,9 @@ public class SecurityConfig {
             .formLogin(form -> form
                 .loginPage("/oauth2/login")
                 .loginProcessingUrl("/oauth2/login")
+                .authenticationDetailsSource(request -> new LoginDetails(
+                        request.getRemoteAddr(), request.getHeader("User-Agent"), request.getParameter("otp")))
+                .successHandler(onSuccess)
                 .permitAll());
         return http.build();
     }

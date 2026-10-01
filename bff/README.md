@@ -28,7 +28,7 @@ The login flow works end to end (verified on the deployed stack).
 
 **Not present:** forwarding to Resource Servers with an audience-restricted token, token refresh, and everything in WP-UI-02 and WP-UI-03 beyond login/register.
 
-**Known gap:** the interactive sign-in is password-only. MFA and lockout live in the Authorization Server's `/api/auth` pipeline and are not enforced on the OIDC login path.
+**Assurance.** `/api/session` reports what the session actually proved, read from the ID token's `amr` claim (`PASSWORD` or `MFA`), plus the Authorization Server link where two-step verification is managed. A missing claim means `PASSWORD`, never `MFA`. The interactive sign-in enforces the second factor for accounts that have one (see the Authorization Server).
 
 **Boot 4 note.** `spring.session.store-type` no longer exists, and the plain `spring-session-data-redis` dependency no longer auto-configures — the Boot starter is required, or sessions silently stay in each pod's memory and a login started on one replica fails on another. The `local` and `test` profiles exclude the Redis auto-configuration instead.
 

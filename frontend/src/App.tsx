@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import { useSession } from "./session";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import MfaSetup from "./pages/MfaSetup";
 import Register from "./pages/Register";
 
 /**
@@ -9,9 +10,9 @@ import Register from "./pages/Register";
  * whatever the BFF reports for the session cookie the browser holds, and that
  * cookie is HttpOnly, so nothing here can read it either.
  *
- * Still to build (WP-UI-02/03): /verify-email, /mfa/setup, /passkeys, the
- * password-reset and recovery routes, /step-up and the Security Center. Each
- * needs an Authorization Server capability that does not exist yet.
+ * Still to build (WP-UI-02/03): /verify-email, /passkeys, the password-reset
+ * and recovery routes, /step-up and the Security Center. Each needs an
+ * Authorization Server capability that does not exist yet.
  */
 export default function App() {
   const { loading } = useSession();
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/mfa/setup" element={<MfaSetup />} />
             <Route path="*" element={<section><h1>Not found</h1><p><Link to="/">Home</Link></p></section>} />
           </Routes>
         )}

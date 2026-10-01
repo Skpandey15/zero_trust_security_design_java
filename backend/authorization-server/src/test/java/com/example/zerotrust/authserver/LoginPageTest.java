@@ -35,6 +35,14 @@ class LoginPageTest {
     }
 
     @Test
+    void loginPageOffersTheCodeFieldWhetherOrNotTheAccountHasTwoStep() throws Exception {
+        // Always present, so the page does not reveal which accounts have a second factor.
+        mvc.perform(get("/oauth2/login").accept("text/html"))
+                .andExpect(content().string(containsString("name=\"otp\"")))
+                .andExpect(content().string(containsString("autocomplete=\"one-time-code\"")));
+    }
+
+    @Test
     void loginPageAllowsNoScript() throws Exception {
         mvc.perform(get("/oauth2/login").accept("text/html"))
                 .andExpect(header().string("Content-Security-Policy", containsString("default-src 'none'")))
@@ -45,6 +53,6 @@ class LoginPageTest {
     @Test
     void failureMessageDoesNotSayWhichPartWasWrong() throws Exception {
         mvc.perform(get("/oauth2/login").param("error", "").accept("text/html"))
-                .andExpect(content().string(containsString("Check your email and password.")));
+                .andExpect(content().string(containsString("Check your details and try again.")));
     }
 }

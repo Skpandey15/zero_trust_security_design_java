@@ -81,23 +81,33 @@ public class AuthService {
         return created;
     }
 
+    /** A user whose credentials (and second factor, where enrolled) have been verified. */
+    public record VerifiedLogin(User user, boolean otpUsed) {}
+
     /**
-     * Zero-trust login pipeline:
+     * Zero-trust login pipeline, shared by every way of signing in:
      *   1. brute-force / lockout gate (per IP and per account)
-     *   2. password verification (Argon2id) — single user load, constant-time on miss
+     *   2. password verification (Argon2id) - single user load, constant-time on miss
      *   3. enabled check (a disabled account can never authenticate)
      *   4. second factor (TOTP) with single-use replay protection when MFA is on
      *   5. audit trail either way
+     *
+     * <p>{@code riskStepUp} is the one difference between callers. The token API
+     * can answer a risky login with an enrolment-only token, so the demand is
+     * satisfiable; the interactive sign-in page cannot, so it passes false and
+     * lets a password-only account in at password assurance (the {@code amr}
+     * claim says so) rather than lock out someone with no way to enrol.
      */
     @Transactional
-    public TokenResponse login(LoginRequest request, String ip, String userAgent) {
-        String email = normalize(request.email());
+    public VerifiedLogin verifyCredentials(String rawEmail, String password, String otpCode,
+                                           String ip, String userAgent, boolean riskStepUp) {
+        String email = normalize(rawEmail);
         loginProtection.assertNotBlocked(email, ip);
 
         User user = userRepository.findByEmail(email).orElse(null);
         boolean passwordOk = user != null
-                ? passwordEncoder.matches(request.password(), user.getPasswordHash())
-                : passwordEncoder.matches(request.password(), dummyHash);
+                ? passwordEncoder.matches(password, user.getPasswordHash())
+                : passwordEncoder.matches(password, dummyHash);
 
         if (user == null || !user.isEnabled() || !passwordOk) {
             loginProtection.recordFailure(email, ip, userAgent);
@@ -106,12 +116,13 @@ public class AuthService {
             throw new BadCredentialsException("Invalid email or password");
         }
 
+        boolean otpUsed = false;
         if (user.isMfaEnabled()) {
-            if (request.otpCode() == null || request.otpCode().isBlank()) {
+            if (otpCode == null || otpCode.isBlank()) {
                 secLog.info("event=login_mfa_challenge email={} ip={}", email, ip);
                 throw new MfaRequiredException();
             }
-            long step = totpService.verifyAndGetStep(user.getMfaSecret(), request.otpCode());
+            long step = totpService.verifyAndGetStep(user.getMfaSecret(), otpCode);
             Long lastUsed = user.getMfaLastUsedStep();
             if (step < 0 || (lastUsed != null && step <= lastUsed)) {
                 loginProtection.recordFailure(email, ip, userAgent);
@@ -121,7 +132,8 @@ public class AuthService {
             }
             user.setMfaLastUsedStep(step);   // spend this step so the code can't be replayed
             userRepository.save(user);
-        } else if (loginProtection.isHighRisk(email, ip)) {
+            otpUsed = true;
+        } else if (riskStepUp && loginProtection.isHighRisk(email, ip)) {
             // Adaptive auth: a risky login (guessing burst / new device) on an
             // account with no second factor is refused pending MFA enrolment,
             // rather than trusting a password alone.
@@ -136,8 +148,16 @@ public class AuthService {
         loginAuditRepository.save(new LoginAudit(email, ip, userAgent, true));
         loginProtection.recordSuccess(email);   // clear the failure counter
         secLog.info("event=login_success userId={} email={} ip={} mfa={}",
-                user.getId(), user.getEmail(), ip, user.isMfaEnabled());
+                user.getId(), user.getEmail(), ip, otpUsed);
         metrics.loginSuccess();
+        return new VerifiedLogin(user, otpUsed);
+    }
+
+    /** Token-API login: verify, then mint an access token and a refresh-token family. */
+    @Transactional
+    public TokenResponse login(LoginRequest request, String ip, String userAgent) {
+        User user = verifyCredentials(request.email(), request.password(), request.otpCode(),
+                ip, userAgent, true).user();
         return new TokenResponse(
                 tokenService.createAccessToken(user),
                 tokenService.createRefreshTokenFamily(user),
@@ -241,6 +261,21 @@ public class AuthService {
         userRepository.save(user);
         secLog.info("event=mfa_setup_started userId={} email={}", user.getId(), user.getEmail());
         return new MfaSetupResponse(secret, totpService.provisioningUri(secret, user.getEmail()));
+    }
+
+    /** Whether the account has a second factor switched on. */
+    @Transactional(readOnly = true)
+    public boolean isMfaEnabled(String email) {
+        return userRepository.findByEmailIgnoreCase(email).map(User::isMfaEnabled).orElse(false);
+    }
+
+    /** The enrolment in progress, if one was started and not yet confirmed. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<MfaSetupResponse> pendingMfaSetup(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .filter(u -> !u.isMfaEnabled() && u.getMfaSecret() != null)
+                .map(u -> new MfaSetupResponse(u.getMfaSecret(),
+                        totpService.provisioningUri(u.getMfaSecret(), u.getEmail())));
     }
 
     /** Step 2: confirm a valid code from the authenticator app to activate MFA. */
