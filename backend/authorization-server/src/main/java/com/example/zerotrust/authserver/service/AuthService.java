@@ -2,12 +2,16 @@ package com.example.zerotrust.authserver.service;
 
 import com.example.zerotrust.authserver.domain.LoginAudit;
 import com.example.zerotrust.authserver.domain.RefreshToken;
+import com.example.zerotrust.authserver.domain.Tenant;
+import com.example.zerotrust.authserver.domain.TenantMembership;
 import com.example.zerotrust.authserver.domain.Role;
 import com.example.zerotrust.authserver.domain.User;
 import com.example.zerotrust.authserver.dto.AuthDtos.*;
 import com.example.zerotrust.authserver.config.SecurityMetrics;
 import com.example.zerotrust.authserver.repository.LoginAuditRepository;
 import com.example.zerotrust.authserver.repository.RefreshTokenRepository;
+import com.example.zerotrust.authserver.repository.TenantMembershipRepository;
+import com.example.zerotrust.authserver.repository.TenantRepository;
 import com.example.zerotrust.authserver.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +41,8 @@ public class AuthService {
     private final TotpService totpService;
     private final LoginProtectionService loginProtection;
     private final SecurityMetrics metrics;
+    private final TenantRepository tenants;
+    private final TenantMembershipRepository memberships;
 
     /**
      * A throwaway Argon2 hash verified when the account doesn't exist, so a
@@ -52,7 +58,9 @@ public class AuthService {
                        TokenService tokenService,
                        TotpService totpService,
                        LoginProtectionService loginProtection,
-                       SecurityMetrics metrics) {
+                       SecurityMetrics metrics,
+                       TenantRepository tenants,
+                       TenantMembershipRepository memberships) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.loginAuditRepository = loginAuditRepository;
@@ -61,6 +69,8 @@ public class AuthService {
         this.totpService = totpService;
         this.loginProtection = loginProtection;
         this.metrics = metrics;
+        this.tenants = tenants;
+        this.memberships = memberships;
         this.dummyHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
@@ -75,8 +85,15 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 request.displayName(),
                 EnumSet.of(Role.USER));
-        UserResponse created = toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        UserResponse created = toResponse(saved);
         loginProtection.initAccount(email);   // seed the lockout counter row
+
+        // Everyone starts with a workspace of their own and is its OWNER. Membership is
+        // explicit (ADR-SEC-015): without a row a person has standing nowhere. Joining
+        // someone else's tenant is a separate, deliberate grant - never implied by this.
+        Tenant workspace = tenants.save(new Tenant(request.displayName().trim() + "'s workspace"));
+        memberships.save(new TenantMembership(saved.getId(), workspace.getId(), "OWNER"));
         secLog.info("event=user_registered userId={} email={}", created.id(), created.email());
         return created;
     }

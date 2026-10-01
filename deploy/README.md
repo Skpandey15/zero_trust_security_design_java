@@ -7,7 +7,9 @@ deploy/
 ├── scripts/
 │   ├── build-images.sh     four images, tagged with the git SHA (never :latest)
 │   ├── deploy-local.sh     bootstrap: cert-manager -> cluster config -> secrets, then build -> import -> apply
-│   ├── smoke-test.sh       end-to-end sign-in journey on the deployed stack (register, sign in, turn on MFA, refuse a password alone)
+│   ├── bootstrap-db.sh     the Resource Server's database role and schema (least privilege); run by deploy-local.sh
+│   ├── add-member.sh       operator: grant a registered user a role in another user's workspace
+│   ├── smoke-test.sh       the deployed stack end to end: sign-in, MFA, tenant isolation, step-up, approval, maker-checker
 │   ├── cluster-up.sh       after a reboot: start any stopped node, wait until the platform is healthy
 │   ├── apply.sh            render the overlay and apply it (shared by deploy-local and Jenkins)
 │   └── teardown-local.sh   removes the zero-trust namespace; leaves other namespaces alone
@@ -96,7 +98,11 @@ These are real gaps, listed rather than hidden:
 - **Postgres and Redis are in-cluster single instances**, Redis unencrypted. Production would use managed, replicated, encrypted services.
 - **No observability stack.** Actuator exposes Prometheus metrics, but nothing scrapes them in this cluster and there is no log shipping or tracing.
 - **Two-step verification is TOTP only, with sharp edges.** It is enforced on the interactive sign-in page (lockout, throttle, single-use codes). But there is no way to switch it off or recover from a lost authenticator (ADR-SEC-005), no QR code (manual key or `otpauth://` link only), no WebAuthn/passkeys, and an account without it signs in at password assurance rather than being refused: the risk-based step-up exists on the token API only, where it can answer with an enrolment token, whereas the sign-in page cannot, and a refusal with no way to comply is a lockout.
-- **`amr` is recorded but not yet demanded.** Tokens now say what the session proved, but nothing requires MFA assurance for any operation: the Resource Server has no endpoints yet.
+- **MFA is demanded for exactly one operation.** Approving a document requires `amr` to contain `otp`; nothing else asks for it yet, and there is no per-route assurance policy beyond that.
+- **Joining another person's workspace is an operator action** (`deploy/scripts/add-member.sh`). Everyone gets a workspace of their own on registration, but there is no tenant-administration API, so two people can only share a tenant by hand. Maker-checker needs two people.
+- **Login tokens sit in Redis.** To keep a user signed in across BFF replicas their tokens live in the shared session. Redis has a password but no TLS and no encryption at rest; production would want both, or an encrypted session serializer.
+- **No revocation propagation to the Resource Server.** It validates tokens offline, so a token stays good until it expires (5 minutes). The security-epoch check (ADR-SEC-009) is not applied there yet.
+- **Exchange is per request.** Every API call makes a token-exchange round trip to the Authorization Server. Fine here; ADR-SEC-016 and the latency budget (section 24.4) say it must be modelled before fan-out.
 - **The smoke test is not in the pipeline.** `deploy/scripts/smoke-test.sh` drives the real ingress; a Jenkins agent pod cannot reach `*.localtest.me` (it resolves to its own loopback), so it is run by hand after a deploy.
 
 ## Verified on the local cluster

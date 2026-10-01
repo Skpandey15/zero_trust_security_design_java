@@ -42,7 +42,15 @@ The default `local` profile uses in-memory H2 with Flyway applying `V1`–`V6`. 
 
 `authorization-server` is **not a skeleton** — it is the ported `zero-trust-auth-service`, upgraded to Spring Boot 4.1 / Spring Security 7, with **21 tests passing**. It authenticates, issues RFC 9068 tokens, rotates refresh families with reuse detection, and enforces continuous verification. See its [README](authorization-server/README.md) for the migration notes and what remains.
 
-`resource-server` **is** a skeleton: it builds, starts, and validates tokens strictly, but exposes no endpoints yet. RBAC/ABAC, tenancy enforcement and the PDP/PEP integration are WP-BE-02.
+`resource-server` is **real** (WP-BE-02): it validates tokens strictly and serves a *documents* domain that exercises every layer the ADRs describe. A document is written by one person and must be approved by another.
+
+- **Tenancy first (ADR-SEC-015).** A document's tenant is read from the stored record, never from the request. The order is fixed: load the resource, derive its tenant, check membership (no row means *not found*, deliberately indistinguishable from a missing id), and only then roles. Lists are built from membership, and the repository has no unscoped "find all".
+- **Three layers (ADR-SEC-013).** Scope (coarse), role *in that tenant* (RBAC), and assurance (ABAC): approving needs a proved second factor, and a password-only session is answered with `STEP_UP` (RFC 9470), not a flat refusal. Maker-is-not-checker and the state machine live in the aggregate, so they hold even if the policy point is down.
+- **Fails closed (ADR-SEC-024).** If membership or the policy point cannot answer, the call is refused with 503; an outage never approves anything.
+- **Every decision is logged (ADR-SEC-023)** with the policy and version that made it and a correlation id (`security.decisions`).
+- **Its own database identity (ADR-SEC-019).** Role `resource_app` owns the `app` schema and can SELECT exactly `tenants` and `subject_tenant_membership` from the identity schema, nothing else. `deploy/scripts/bootstrap-db.sh` creates it.
+
+The Authorization Server also performs **token exchange (RFC 8693, ADR-SEC-016)**: the BFF trades its login token for a short-lived token for one API audience and one scope. Exchange can only narrow - the framework checks the requested scope against the *client's* registrations, not the login token's, so that rule is enforced separately (a test proves it: without it a read-only login could be traded for approval).
 
 Schema: the ported `V1`–`V5` plus `V6__tenancy.sql`, which adds the `tenants`, `subject_tenant_membership` and `password_history` tables the v1.5 review found missing from the proposed model — [ADR-SEC-015](../adr/ADR-SEC-015-tenant-isolation-membership.md) and WP-BE-02 depend on them.
 
@@ -56,6 +64,6 @@ Both are in `ResourceServerSecurityConfig`, and both are mistakes that pass code
 
 ## Tests
 
-`ApplicationContextTest` in each module is the gate that keeps the skeleton startable — a skeleton that compiles but cannot start is not a skeleton.
+`ApplicationContextTest` in each module is the gate that keeps a service startable — a service that compiles but cannot start is not a service.
 
 `security-test-support` defines the fitness functions from §24.6. Ownership follows the thing being tested: token-validation tests belong to WP-BE-01, which issues tokens, **not** to WP-BE-02. Deferring them to WP-BE-02 would ship the first slice with no validation gate — which is how an unvalidated audience claim reached the earlier reference implementation.

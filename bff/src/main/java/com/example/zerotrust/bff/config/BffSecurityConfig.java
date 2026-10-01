@@ -9,6 +9,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -31,6 +33,23 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 @EnableWebSecurity
 @EnableConfigurationProperties(BffProperties.class)
 public class BffSecurityConfig {
+
+    /**
+     * Where the user's login token is kept: in the HTTP SESSION, which is shared
+     * across replicas through Redis.
+     *
+     * <p>Spring's default for an authenticated user is an in-memory
+     * {@code OAuth2AuthorizedClientService} - local to ONE pod. With two replicas,
+     * only the pod that handled the login callback holds the token; a request that
+     * lands on the other finds none, and the user is bounced back to sign in again.
+     * It looks like flaky sign-in, and passes any single-replica test. The session is
+     * already the one piece of state both replicas share (design document 27.8), so
+     * the token lives there.
+     */
+    @Bean
+    OAuth2AuthorizedClientRepository authorizedClientRepository() {
+        return new HttpSessionOAuth2AuthorizedClientRepository();
+    }
 
     @Bean
     SecurityFilterChain bffSecurityFilterChain(HttpSecurity http, BffProperties props,

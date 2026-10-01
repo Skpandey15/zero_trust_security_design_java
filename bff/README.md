@@ -26,7 +26,11 @@ The login flow works end to end (verified on the deployed stack).
 
 **Present:** session cookie configuration (`HttpOnly`, `Secure`, `SameSite`), cookie-based CSRF with the token cookie issued on every response, HSTS and CSP headers, deny-by-default authorization, the confidential OAuth client with **PKCE**, Redis-backed sessions across replicas, `/api/session`, `/api/session/logout` (ends both the BFF and Authorization Server sessions), and `/api/auth/register` (relayed to the Authorization Server over the cluster-internal address).
 
-**Not present:** forwarding to Resource Servers with an audience-restricted token, token refresh, and everything in WP-UI-02 and WP-UI-03 beyond login/register.
+**API forwarding (`/api/documents/**`, `/api/tenants`).** For each call the BFF exchanges the login token (RFC 8693) for one aimed at the API and narrowed to the single scope that route needs, then forwards. The login token, the cookie and anything the browser sent in `Authorization` are never relayed. Deny by default: only listed routes exist, ids are constrained so a crafted one cannot escape the API's path, and if the exchange fails the call fails - the broad login token is never sent in its place.
+
+**Login token storage.** The token is kept in the HTTP session (shared through Redis), not in Spring's default in-memory service: that one is local to a pod, so with two replicas every other request reached a pod that had never heard of the user and bounced them to sign in again.
+
+**Not present:** token refresh handling beyond the framework's, and everything in WP-UI-02 and WP-UI-03 beyond login, registration, MFA hand-off and documents.
 
 **Assurance.** `/api/session` reports what the session actually proved, read from the ID token's `amr` claim (`PASSWORD` or `MFA`), plus the Authorization Server link where two-step verification is managed. A missing claim means `PASSWORD`, never `MFA`. The interactive sign-in enforces the second factor for accounts that have one (see the Authorization Server).
 

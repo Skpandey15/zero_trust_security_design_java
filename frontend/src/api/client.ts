@@ -40,6 +40,29 @@ export class ApiError extends Error {
   }
 }
 
+export interface Tenant {
+  id: string;
+  name: string;
+  /** The role the caller holds in this tenant. A role means nothing outside its tenant. */
+  role: "VIEWER" | "MEMBER" | "APPROVER" | "OWNER";
+}
+
+export interface DocumentView {
+  id: string;
+  tenantId: string;
+  title: string;
+  body: string;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED";
+  /** True when the caller wrote it. Lets the UI offer the right actions; the server decides every one. */
+  mine: boolean;
+  approvedBy?: number | null;
+  createdAt: string;
+  approvedAt?: string | null;
+}
+
+/** The server's code for "allowed, but prove a second factor first" (RFC 9470). */
+export const STEP_UP_REQUIRED = "STEP_UP_REQUIRED";
+
 const CSRF_COOKIE = "XSRF-TOKEN";
 const CSRF_HEADER = "X-XSRF-TOKEN";
 
@@ -115,4 +138,25 @@ export async function logout(): Promise<void> {
     method: "POST",
   });
   window.location.assign(result?.logoutUrl ?? "/");
+}
+
+export function getTenants(): Promise<Tenant[]> {
+  return request<Tenant[]>("/api/tenants");
+}
+
+export function listDocuments(): Promise<DocumentView[]> {
+  return request<DocumentView[]>("/api/documents");
+}
+
+/** {@code tenantId} is a request to act in that tenant. The server checks membership; it is never trusted. */
+export function createDocument(input: { tenantId: string; title: string; body: string }): Promise<DocumentView> {
+  return request<DocumentView>("/api/documents", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function submitDocument(id: string): Promise<DocumentView> {
+  return request<DocumentView>(`/api/documents/${encodeURIComponent(id)}/submit`, { method: "POST" });
+}
+
+export function approveDocument(id: string): Promise<DocumentView> {
+  return request<DocumentView>(`/api/documents/${encodeURIComponent(id)}/approve`, { method: "POST" });
 }
