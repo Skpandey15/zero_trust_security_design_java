@@ -7,6 +7,7 @@ deploy/
 ├── scripts/
 │   ├── build-images.sh     four images, tagged with the git SHA (never :latest)
 │   ├── deploy-local.sh     bootstrap: cert-manager -> cluster config -> secrets, then build -> import -> apply
+│   ├── cluster-up.sh       after a reboot: start any stopped node, wait until the platform is healthy
 │   ├── apply.sh            render the overlay and apply it (shared by deploy-local and Jenkins)
 │   └── teardown-local.sh   removes the zero-trust namespace; leaves other namespaces alone
 ├── docker/                 packaging-only Dockerfiles (CI builds the jar once, Kaniko packages it)
@@ -25,6 +26,14 @@ deploy/scripts/deploy-local.sh
 ```
 
 Then `https://zerotrust.localtest.me:8443`. `localtest.me` resolves to `127.0.0.1` through public wildcard DNS, so no `hosts` edit is needed. The certificate comes from a private CA; the script writes it to `deploy/.local/zero-trust-ca.crt` — import it into the browser, or use `curl --cacert`.
+
+## After a reboot
+
+```bash
+deploy/scripts/cluster-up.sh
+```
+
+After the machine restarts, `k3d cluster start` can leave a node stopped (an agent that races the control plane exits with "failed to start networking"). Volumes are pinned to nodes, so one missing agent takes the registry, Postgres and the Gradle cache with it, and the symptoms look unrelated — `ImagePullBackOff`, `CrashLoopBackOff`, a Jenkins build that "failed". The script starts the control plane first, then any node still down, waits for every node and then each workload in dependency order, and reports what is still unhealthy. It only judges this platform's namespaces; another project sharing the cluster is mentioned but never fails it. On a healthy cluster it just verifies, in about eight seconds.
 
 ## Pipeline (Jenkins)
 
