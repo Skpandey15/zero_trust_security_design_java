@@ -9,11 +9,13 @@ RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew --no-daemon bootJar -x test \
  && cp build/libs/*-SNAPSHOT.jar /app.jar
 
-FROM bellsoft/liberica-openjre-debian:27
-# Pull in Debian security fixes published since the base image was built (the
-# image scan flagged libpcre2 HIGH CVEs that have a fixed package).
-RUN apt-get update && apt-get upgrade -y --no-install-recommends  && rm -rf /var/lib/apt/lists/*
-RUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app --no-create-home app
+FROM bellsoft/liberica-openjre-alpine:27
+# Alpine, not Debian: the scan flagged six HIGH libexpat CVEs that Debian 12's
+# archive had not yet shipped a package for, so `apt-get upgrade` could not fix
+# them. Alpine's runtime image carries far fewer packages to be flagged at all.
+# `apk upgrade` still pulls in any fixes published since the base was built.
+RUN apk upgrade --no-cache
+RUN addgroup -S -g 10001 app && adduser -S -u 10001 -G app -H -s /sbin/nologin app
 COPY --from=build /app.jar /app/app.jar
 USER 10001:10001
 WORKDIR /app
