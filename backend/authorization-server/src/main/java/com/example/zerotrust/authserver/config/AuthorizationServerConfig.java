@@ -17,10 +17,12 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -106,8 +108,20 @@ public class AuthorizationServerConfig {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                // ADR-SEC-016: the BFF swaps its login token for an audience-restricted,
+                // down-scoped one per API call. Only this client may; the allowed audiences
+                // are enforced in TokenExchangeClaims.
+                .authorizationGrantType(AuthorizationGrantType.TOKEN_EXCHANGE)
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
+                // The ceiling of what an exchange can ever grant. Exchange only narrows, so
+                // a scope not listed here can never appear in a token for an API.
+                .scope("documents.read")
+                .scope("documents.write")
+                .scope("documents.approve")
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(Duration.ofMinutes(5))   // short: revocation relies on TTL (ADR-SEC-009)
+                        .build())
                 .clientSettings(ClientSettings.builder()
                         .requireProofKey(true)
                         .requireAuthorizationConsent(false)

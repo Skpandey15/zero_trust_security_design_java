@@ -47,7 +47,7 @@ class BrowserBoundaryTest {
                 ResponseEntity.status(HttpStatus.CREATED).body(Map.of("email", "a@example.com"));
 
         RecordingAuthServerClient() {
-            super(new BffProperties(null, null, null));
+            super(new BffProperties(null, null, null, null));
         }
 
         @Override

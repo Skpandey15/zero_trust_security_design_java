@@ -12,12 +12,15 @@ public record BffProperties(
          * not the public issuer URL: this traffic never leaves the cluster.
          */
         String authServerBaseUrl,
+        /** The audience of the API this BFF calls. A token exchanged for it is valid there and nowhere else. */
+        String apiAudience,
         /** Content-Security-Policy. Tightened per environment; never widened for convenience. */
         String contentSecurityPolicy) {
 
     public BffProperties {
         if (apiBaseUrl == null || apiBaseUrl.isBlank()) apiBaseUrl = "http://localhost:9100";
         if (authServerBaseUrl == null || authServerBaseUrl.isBlank()) authServerBaseUrl = "http://localhost:9000";
+        if (apiAudience == null || apiAudience.isBlank()) apiAudience = "zero-trust-api";
         if (contentSecurityPolicy == null || contentSecurityPolicy.isBlank()) {
             contentSecurityPolicy = "default-src 'self'; frame-ancestors 'none'; object-src 'none'";
         }

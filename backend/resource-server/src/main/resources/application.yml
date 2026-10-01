@@ -5,6 +5,18 @@ server:
 spring:
   application:
     name: resource-server
+  profiles:
+    active: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate     # Flyway owns the schema; Hibernate only checks it matches
+    properties:
+      hibernate:
+        default_schema: app
+  flyway:
+    schemas: app
+    default-schema: app
 
 app:
   token:
@@ -20,3 +32,42 @@ management:
     web:
       exposure:
         include: health,info
+
+---
+# LOCAL - self-contained in-memory H2, for a laptop with nothing else running.
+# Membership normally lives in the identity database, so the local profile has
+# no membership table: every lookup finds nothing, which is DENY (never an allow).
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:resources;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  # H2 folds unquoted names to UPPER case but Flyway quotes the schema it creates, so a
+  # lower-case "app" would be a different schema from the one Hibernate looks in.
+  # (PostgreSQL, below, keeps lower case.)
+  flyway:
+    schemas: APP
+    default-schema: APP
+  jpa:
+    properties:
+      hibernate:
+        default_schema: APP
+
+---
+# DEV - the shared PostgreSQL. A DEDICATED role (resource_app) that owns only the
+# `app` schema and can SELECT tenant membership from the identity schema: a
+# compromised Resource Server must not hold the keys to the identity database
+# (ADR-SEC-019). Created by deploy/scripts/bootstrap-db.sh.
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/authdb?currentSchema=app}
+    username: ${DB_USER:resource_app}
+    password: ${DB_PASSWORD:}
+  flyway:
+    create-schemas: false   # the schema is created by the bootstrap, with the right owner

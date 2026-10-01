@@ -41,9 +41,12 @@ export default function Home() {
           </p>
         )}
         {error && <p role="alert" className="error">{error}</p>}
-        <button onClick={signOut} disabled={busy}>
-          {busy ? "Signing out…" : "Sign out"}
-        </button>
+        <p className="actions">
+          <Link className="button" to="/documents">Documents</Link>
+          <button onClick={signOut} disabled={busy}>
+            {busy ? "Signing out…" : "Sign out"}
+          </button>
+        </p>
       </section>
     );
   }

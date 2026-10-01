@@ -54,6 +54,8 @@ have_secret() { $KUBECTL -n "$NS" get secret "$1" >/dev/null 2>&1; }
 
 have_secret zt-db || $KUBECTL -n "$NS" create secret generic zt-db \
   --from-literal=username=auth --from-literal=password="$(rand)"
+# The Resource Server's own database login (ADR-SEC-019): never the identity owner's.
+have_secret zt-resource-db || $KUBECTL -n "$NS" create secret generic zt-resource-db   --from-literal=username=resource_app --from-literal=password="$(rand)"
 have_secret zt-redis || $KUBECTL -n "$NS" create secret generic zt-redis \
   --from-literal=password="$(rand)"
 have_secret zt-oidc || $KUBECTL -n "$NS" create secret generic zt-oidc \
@@ -68,6 +70,8 @@ fi
 
 # ---- 5. the application ------------------------------------------------------
 log "applying workloads (tag ${TAG})"
+# Renamed when the Resource Server was given database access; apply does not prune.
+$KUBECTL -n "$NS" delete networkpolicy postgres-from-authorization-server --ignore-not-found >/dev/null
 IMAGE_TAG="$TAG" KUBECTL="$KUBECTL" deploy/scripts/apply.sh
 
 # The edge certificate must exist before the BFF's init container can mount its CA.
@@ -75,7 +79,12 @@ $KUBECTL -n "$NS" wait --for=condition=Ready certificate/zt-edge --timeout=120s
 
 $KUBECTL -n "$NS" rollout status statefulset/postgres --timeout=300s
 $KUBECTL -n "$NS" rollout status deploy/redis --timeout=180s
-for d in authorization-server resource-server bff frontend; do
+# The Resource Server's database role needs the identity schema the Authorization
+# Server creates on start-up, so it is bootstrapped between the two.
+$KUBECTL -n "$NS" rollout status deploy/authorization-server --timeout=400s
+log "bootstrapping the Resource Server's database role"
+deploy/scripts/bootstrap-db.sh
+for d in resource-server bff frontend; do
   $KUBECTL -n "$NS" rollout status "deploy/$d" --timeout=400s
 done
 

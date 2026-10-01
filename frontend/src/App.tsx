@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import { useSession } from "./session";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import Documents from "./pages/Documents";
 import MfaSetup from "./pages/MfaSetup";
 import Register from "./pages/Register";
 
@@ -15,12 +16,13 @@ import Register from "./pages/Register";
  * Authorization Server capability that does not exist yet.
  */
 export default function App() {
-  const { loading } = useSession();
+  const { loading, session } = useSession();
 
   return (
     <>
       <header className="bar">
         <Link to="/" className="brand">Zero Trust Console</Link>
+        {session?.authenticated && <Link to="/documents">Documents</Link>}
       </header>
       <main>
         {loading ? (
@@ -30,6 +32,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/documents" element={<Documents />} />
             <Route path="/mfa/setup" element={<MfaSetup />} />
             <Route path="*" element={<section><h1>Not found</h1><p><Link to="/">Home</Link></p></section>} />
           </Routes>

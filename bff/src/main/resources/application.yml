@@ -51,7 +51,7 @@ spring:
             client-secret: ${OAUTH_CLIENT_SECRET:local-dev-bff-secret}
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            scope: openid, profile
+            scope: openid, profile, documents.read, documents.write, documents.approve
         provider:
           zero-trust:
             # Discovery runs at startup, so the Authorization Server must be up.
@@ -80,7 +80,7 @@ spring:
             client-secret: ${OAUTH_CLIENT_SECRET:}
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            scope: openid, profile
+            scope: openid, profile, documents.read, documents.write, documents.approve
         provider:
           zero-trust:
             issuer-uri: ${AUTH_ISSUER}

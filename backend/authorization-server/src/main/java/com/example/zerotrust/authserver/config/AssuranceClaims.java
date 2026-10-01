@@ -1,13 +1,11 @@
 package com.example.zerotrust.authserver.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +21,7 @@ import java.util.List;
  * anything the client sent - and is omitted for machine clients, which have no
  * interactive factors to report.
  */
-@Configuration
+@Component
 public class AssuranceClaims {
 
     /** Maps the factors a session proved to RFC 8176 amr values. */
@@ -40,18 +38,16 @@ public class AssuranceClaims {
         return amr;
     }
 
-    @Bean
-    OAuth2TokenCustomizer<JwtEncodingContext> amrCustomizer() {
-        return context -> {
-            String type = context.getTokenType().getValue();
-            boolean carriesAssurance = OidcParameterNames.ID_TOKEN.equals(type)
-                    || OAuth2TokenType.ACCESS_TOKEN.getValue().equals(type);
-            if (!carriesAssurance) return;
+    /** Adds the amr claim to ID and access tokens. Composed into the one customizer bean. */
+    void customize(JwtEncodingContext context) {
+        String type = context.getTokenType().getValue();
+        boolean carriesAssurance = OidcParameterNames.ID_TOKEN.equals(type)
+                || OAuth2TokenType.ACCESS_TOKEN.getValue().equals(type);
+        if (!carriesAssurance) return;
 
-            List<String> amr = amrFor(context.getPrincipal());
-            if (!amr.isEmpty()) {
-                context.getClaims().claim("amr", amr);
-            }
-        };
+        List<String> amr = amrFor(context.getPrincipal());
+        if (!amr.isEmpty()) {
+            context.getClaims().claim("amr", amr);
+        }
     }
 }

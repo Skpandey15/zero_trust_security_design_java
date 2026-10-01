@@ -47,6 +47,9 @@ public class ResourceServerSecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                // Authenticated is the coarse gate only. The decision that matters is made
+                // per operation, against the resource's own tenant (ADR-SEC-013/015).
+                .requestMatchers("/api/documents", "/api/documents/**", "/api/tenants").authenticated()
                 // ZERO TRUST DEFAULT: anything not listed above does not exist.
                 .anyRequest().denyAll())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder)))
@@ -66,13 +69,20 @@ public class ResourceServerSecurityConfig {
                 .validateType(false)   // see the class javadoc
                 .build();
 
-        OAuth2TokenValidator<Jwt> accessTokenProfile = JwtValidators.createAtJwtValidator()
+        decoder.setJwtValidator(accessTokenValidator(issuer, audience, clientId));
+        return decoder;
+    }
+
+    /**
+     * The one definition of what an acceptable access token is: RFC 9068 at+jwt,
+     * from this issuer, for THIS audience, with a client_id. Shared by the decoder
+     * and the tests, so the tests exercise the real chain rather than a copy.
+     */
+    public static OAuth2TokenValidator<Jwt> accessTokenValidator(String issuer, String audience, String clientId) {
+        return JwtValidators.createAtJwtValidator()
                 .issuer(issuer)
                 .audience(audience)
                 .clientId(clientId)
                 .build();
-
-        decoder.setJwtValidator(accessTokenProfile);
-        return decoder;
     }
 }

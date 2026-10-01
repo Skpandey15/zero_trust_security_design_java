@@ -53,6 +53,15 @@ spec:
             - name: AUTH_ISSUER
               valueFrom: { configMapKeyRef: { name: platform-config, key: issuer } }
             - { name: JWK_SET_URI, value: "http://authorization-server:9000/oauth2/jwks" }
+            # A DEDICATED database role (ADR-SEC-019): owns only its own schema and can read
+            # tenant membership, nothing else of the identity database. Created by
+            # deploy/scripts/bootstrap-db.sh; the pipeline cannot grant itself database rights.
+            - { name: SPRING_PROFILES_ACTIVE, value: dev }
+            - { name: DB_URL, value: "jdbc:postgresql://postgres:5432/authdb?currentSchema=app" }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: zt-resource-db, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: zt-resource-db, key: password } }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
